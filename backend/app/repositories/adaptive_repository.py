@@ -8,7 +8,6 @@ Requirements Traceability:
 - Decision D6: SQLAlchemy 2.0 ORM with PostgreSQL-compatible architecture.
 """
 import json
-from typing import Optional
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -25,7 +24,7 @@ class AdaptiveRepository:
     Guarantees state survival across process recreation and server restarts.
     """
 
-    def __init__(self, session_factory: Optional[sessionmaker[Session]] = None) -> None:
+    def __init__(self, session_factory: sessionmaker[Session] | None = None) -> None:
         self.session_factory = session_factory or SessionLocal
         init_db()
 

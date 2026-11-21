@@ -4,7 +4,7 @@
 > **Project**: AdaptLearn<br>
 > **Course**: Software Quality Assurance (SE431)<br>
 > **Standard Reference**: IEEE Std 1044 (Standard Classification for Software Anomalies)<br>
-> **Current Active Defects**: **2 active defects (6 resolved)** *(Updated post Task COMMIT-07: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003, DEF-DATA-001, DEF-ARCH-001, DEF-DOC-001 resolved)*
+> **Current Active Defects**: **2 active defects (7 resolved)** *(Updated post Task HOTFIX-01: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003, DEF-DATA-001, DEF-ARCH-001, DEF-DOC-001, DEF-CI-001 resolved)*
 
 ---
 
@@ -38,6 +38,7 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 | **DEF-ARCH-001** | FINAL-03 Audit | SE423 rubric requirement for Creational Pattern (Factory Method) unmet (only dictionary lookup exists). | S3 - Moderate | P2 - High | `backend/app/engine/recommendation_strategy.py`<br>`backend/app/services/adaptive_service.py` | Toqeer Ahmed | **RESOLVED** | CAPA-ARCH-001 | Verified by `backend/tests/unit/test_recommendation_strategy.py` (18/18 passed) |
 | **DEF-FE-001** | FINAL-03 Audit | Frontend Assessment and Authentication views operate in simulated/preview mode with blocked backend endpoints. | S2 - Major | P2 - High | `frontend/src/components/AssessmentView.jsx`<br>`frontend/src/components/AuthView.jsx` | Toqeer Ahmed | **OPEN** | CAPA-FE-001 | Awaiting Batch A/D fix |
 | **DEF-DOC-001** | FINAL-03 Audit | SQA documentation test count discrepancy: earlier documents cite 82/87 tests instead of 150. | S3 - Moderate | P2 - High | `docs/sqa/requirements_traceability_matrix.md`<br>`docs/sqa/risk_register.md`<br>`docs/sqa/formal_inspection_report.md`<br>`docs/sqa/test_execution_report.md` | Toqeer Ahmed | **RESOLVED** | CAPA-DOC-001 | Verified in Task COMMIT-07 across all 14 test modules (150/150 passed) |
+| **DEF-CI-001** | GitHub Actions CI | Missing tracked backend schema, service, endpoint, and test files in Git causing CI test collection crash (`ModuleNotFoundError: No module named 'app.schemas.adaptive'`). | S1 - Critical | P1 - Immediate | `backend/app/schemas/adaptive.py`<br>`backend/app/services/__init__.py` | Toqeer Ahmed | **RESOLVED** | CAPA-CI-001 | Verified by clean-checkout simulation passing all 150 tests |
 | *[DEF-FND-001]* | FND-001 | *[Pending live Fagan inspection meeting with external faculty evaluator]* | S1/S2/S3/S4 | P1/P2/P3/P4 | `backend/app/engine/...` | Assignee | *Pending* | CAPA-001 | Awaiting inspection |
 
 ---

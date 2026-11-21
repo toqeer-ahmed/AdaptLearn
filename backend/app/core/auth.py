@@ -8,8 +8,8 @@ Requirements Traceability:
 - Decision D5: Password bounds and secure hashing constraints.
 """
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 import jwt
 from fastapi import Depends, Header, HTTPException, status
@@ -103,18 +103,18 @@ def get_current_user(
 
         return CurrentUser(user_id=user.id, role=user.role)
 
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidSignatureError:
+        ) from err
+    except jwt.InvalidSignatureError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token signature",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from err
     except (jwt.InvalidTokenError, HTTPException) as exc:
         if isinstance(exc, HTTPException):
             raise exc
@@ -128,18 +128,16 @@ def get_current_user(
 
                 # Validate against repository; seed if absent for development convenience
                 user = user_repo.get_by_id(dev_id)
-                if user is None:
-                    # Look up by standard preset or reject spoofed IDs
-                    if dev_id in (1, 2, 101):
-                        user_repo.seed_default_users()
-                        user = user_repo.get_by_id(dev_id)
+                if user is None and dev_id in (1, 2, 101):
+                    user_repo.seed_default_users()
+                    user = user_repo.get_by_id(dev_id)
 
                 if user is not None and user.role.lower() != dev_role:
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Token role claim does not match user account",
                         headers={"WWW-Authenticate": "Bearer"},
-                    )
+                    ) from exc
 
                 return CurrentUser(user_id=dev_id, role=dev_role)
 
@@ -147,15 +145,12 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token format or claims",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
 
 
 def require_role(allowed_roles: list[str] | str) -> Callable[[CurrentUser], CurrentUser]:
     """Dependency factory enforcing server-side role-based access control (FR-03, NFR-05)."""
-    if isinstance(allowed_roles, str):
-        roles_list = [allowed_roles]
-    else:
-        roles_list = allowed_roles
+    roles_list = [allowed_roles] if isinstance(allowed_roles, str) else allowed_roles
     allowed_set = {r.strip().lower() for r in roles_list}
 
     def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:

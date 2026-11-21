@@ -10,7 +10,6 @@ Requirements Traceability:
 - NFR-07 & NFR-08: Persistent database transactions and ACID durability.
 """
 from dataclasses import dataclass
-from typing import Optional
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -49,7 +48,7 @@ class ProgressRepository:
     Provides durable relational storage surviving application restart.
     """
 
-    def __init__(self, session_factory: Optional[sessionmaker[Session]] = None) -> None:
+    def __init__(self, session_factory: sessionmaker[Session] | None = None) -> None:
         self.session_factory = session_factory or SessionLocal
         init_db()
 

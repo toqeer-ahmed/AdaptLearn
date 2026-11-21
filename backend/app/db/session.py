@@ -5,7 +5,7 @@ Requirements Traceability:
 - NFR-08: Transactional integrity and atomic commits.
 - Decision D6: SQLAlchemy 2.0 ORM with PostgreSQL-compatible architecture.
 """
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker

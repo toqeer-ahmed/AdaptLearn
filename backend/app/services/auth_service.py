@@ -8,7 +8,6 @@ Requirements Traceability:
 - NFR-05: Server-side access control.
 - AGENTS.md Rule 2: Service calls Repository and Core Security only.
 """
-from typing import Optional
 
 from fastapi import HTTPException, status
 
@@ -29,7 +28,7 @@ from app.schemas.auth import (
 class AuthService:
     """Service handling user registration, authentication, and token generation."""
 
-    def __init__(self, user_repo: Optional[UserRepository] = None) -> None:
+    def __init__(self, user_repo: UserRepository | None = None) -> None:
         self.user_repo = user_repo or get_user_repository()
 
     def register(self, payload: UserRegisterRequest) -> UserResponse:
@@ -100,12 +99,12 @@ class AuthService:
             ),
         )
 
-    def get_user_by_id(self, user_id: int) -> Optional[UserRecord]:
+    def get_user_by_id(self, user_id: int) -> UserRecord | None:
         """Fetch user by primary key."""
         return self.user_repo.get_by_id(user_id)
 
 
-_AUTH_SERVICE_INSTANCE: Optional[AuthService] = None
+_AUTH_SERVICE_INSTANCE: AuthService | None = None
 
 
 def get_auth_service() -> AuthService:

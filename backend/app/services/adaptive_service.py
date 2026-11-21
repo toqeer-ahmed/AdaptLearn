@@ -17,7 +17,6 @@ from app.engine.mastery_policy import InvalidPolicyConfiguration, MasteryPolicy
 from app.engine.recommendation_strategy import (
     RecommendationStrategyCreator,
     TopicRecommendationInput,
-    get_recommendation_strategy,
     get_strategy_creator,
 )
 from app.repositories.adaptive_repository import (

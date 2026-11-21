@@ -5,13 +5,13 @@ from app.models.progress import AttemptModel, CourseOwnerModel, EnrollmentModel,
 from app.models.user import UserModel
 
 __all__ = [
+    "AttemptModel",
     "Base",
+    "CourseOwnerModel",
     "CourseSettingsModel",
-    "StudentTopicResponseModel",
     "CourseTopicModel",
     "EnrollmentModel",
-    "CourseOwnerModel",
-    "AttemptModel",
     "QuestionStatsModel",
+    "StudentTopicResponseModel",
     "UserModel",
 ]

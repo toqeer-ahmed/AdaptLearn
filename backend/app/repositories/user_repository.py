@@ -8,7 +8,6 @@ Requirements Traceability:
 - NFR-07 & NFR-08: Persistent database storage.
 """
 from dataclasses import dataclass
-from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, sessionmaker
@@ -32,7 +31,7 @@ class UserRecord:
 class UserRepository:
     """SQLAlchemy persistent repository managing user records."""
 
-    def __init__(self, session_factory: Optional[sessionmaker[Session]] = None) -> None:
+    def __init__(self, session_factory: sessionmaker[Session] | None = None) -> None:
         self.session_factory = session_factory or SessionLocal
         init_db()
         self.seed_default_users()
@@ -125,7 +124,7 @@ class UserRepository:
                 is_active=user.is_active,
             )
 
-    def get_by_id(self, user_id: int) -> Optional[UserRecord]:
+    def get_by_id(self, user_id: int) -> UserRecord | None:
         """Look up user by primary key."""
         with self.session_factory() as session:
             u = session.query(UserModel).filter_by(id=user_id).first()
@@ -140,7 +139,7 @@ class UserRepository:
                 )
             return None
 
-    def get_by_email(self, email: str) -> Optional[UserRecord]:
+    def get_by_email(self, email: str) -> UserRecord | None:
         """Look up user by email address (case-insensitive)."""
         normalized = email.strip().lower()
         with self.session_factory() as session:
@@ -164,7 +163,7 @@ class UserRepository:
         self.seed_default_users()
 
 
-_USER_REPO_INSTANCE: Optional[UserRepository] = None
+_USER_REPO_INSTANCE: UserRepository | None = None
 
 
 def get_user_repository() -> UserRepository:

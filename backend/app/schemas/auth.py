@@ -6,7 +6,6 @@ Requirements Traceability:
 - NFR-03: Passwords never logged or returned in responses.
 - Decision D5: Input bounds (name 1-100, email <= 254, password 8-72).
 """
-import re
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 

@@ -7,14 +7,14 @@ Requirements Traceability:
 - Decision D6: SQLAlchemy 2.0 ORM with persistent database storage.
 - SQA DEF-DATA-001: Replacement of volatile in-memory dicts with persistent storage.
 """
-from pathlib import Path
+import contextlib
 import tempfile
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db.base import Base
 from app.db.session import init_db
 from app.engine.mastery_calculator import MasteryParameters, ResponseRecord
 from app.engine.recommendation_strategy import TopicRecommendationInput
@@ -38,10 +38,8 @@ def temp_db():
 
     engine.dispose()
     if db_path.exists():
-        try:
+        with contextlib.suppress(PermissionError):
             db_path.unlink()
-        except PermissionError:
-            pass
 
 
 class TestAdaptiveRepositoryPersistence:
@@ -49,7 +47,7 @@ class TestAdaptiveRepositoryPersistence:
 
     def test_course_settings_crud_and_survival_across_restart(self, temp_db):
         """Course adaptive parameters survive process recreation / server restart."""
-        session_factory, engine = temp_db
+        session_factory, _ = temp_db
 
         # Step 1: Initialize repository and save custom parameters
         repo_1 = AdaptiveRepository(session_factory=session_factory)

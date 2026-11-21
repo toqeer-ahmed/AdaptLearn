@@ -11,8 +11,8 @@ Requirements Traceability:
 - SQA DEF-AUTH-002: Cryptographic signing and expiry validation.
 - SQA DEF-AUTH-003: Backend registration, login, and password hashing endpoints.
 """
-from datetime import timedelta
 import time
+from datetime import timedelta
 
 import jwt
 import pytest
@@ -28,8 +28,6 @@ from app.core.security import (
 from app.main import app
 from app.repositories.progress_repository import get_progress_repository
 from app.repositories.user_repository import get_user_repository
-from app.schemas.auth import UserLoginRequest, UserRegisterRequest
-from app.services.auth_service import get_auth_service
 
 
 @pytest.fixture(autouse=True)

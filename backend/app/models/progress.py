@@ -1,5 +1,5 @@
 """SQLAlchemy ORM models for Module 5: Progress Analytics & Instructor Dashboard."""
-from sqlalchemy import Boolean, Column, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Column, Float, Integer, String, Text, UniqueConstraint
 
 from app.db.base import Base
 

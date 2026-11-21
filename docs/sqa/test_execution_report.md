@@ -16,10 +16,10 @@
 | :--- | :--- |
 | **Execution Date** | November 21, 2026 |
 | **Test Environment** | OS: Windows 11 (build 10.0.26200)<br>Python: 3.10.11 (tags/v3.10.11:7d4cc5a)<br>Pytest: 9.2.0 (pluggy 1.7.0, anyio 4.16.0)<br>Node.js: v20.x, Vite 8.3.8 |
-| **Build / Commit Tested** | `ad1ebd4` (Post Task COMMIT-06 Verification) |
+| **Build / Commit Tested** | `b605015` / `HOTFIX-01` Verification Baseline |
 | **Test Suite Type** | Architecture / Security & Auth / Persistence / Unit / Integration / Cross-Module Regression / Smoke |
-| **Command Executed** | `$env:PYTHONPATH='backend'; .\backend\venv\Scripts\pytest backend/tests -v` |
-| **Execution Duration** | **35.39 seconds** |
+| **Command Executed** | `cd backend; pytest -v` |
+| **Execution Duration** | **36.85 seconds** |
 
 ---
 
