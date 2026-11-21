@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.errors import setup_exception_handlers
+from app.db.session import init_db
 from app.schemas.health import HealthResponse
 
 # Initialize FastAPI application
@@ -13,6 +15,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Initialize database schema (NFR-07, NFR-08)
+init_db()
 
 # Configure Cross-Origin Resource Sharing (CORS)
 if settings.BACKEND_CORS_ORIGINS:

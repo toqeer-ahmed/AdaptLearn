@@ -17,7 +17,7 @@
 | **D3** | Question Structure & Single Correct Index | M2 (Mustajaab) | **Proposed** | Resolves ambiguity between FR-09 and TC-09. |
 | **D4** | Deterministic Recommendation Ordering | M3 (Toqeer), M4 (Hiba) | **Proposed** | Resolves FR-17 ambiguity on topic ordering after weak topics. |
 | **D5** | User Input & Password String Bounds | M1 (Hiba), Core | **Adopted / Implemented** | Prevents bcrypt 72-byte truncation and DoS vulnerabilities; verified in Task COMMIT-03. |
-| **D6** | Synchronous SQLAlchemy 2.0 & Real PostgreSQL | All Modules, CI | **Proposed** | Satisfies concurrency locking (`SELECT FOR UPDATE`) required for TC-31. |
+| **D6** | SQLAlchemy 2.0 ORM & SQLite / PostgreSQL Architecture | All Modules, CI | **Adopted / Implemented** | Durable persistence across restarts (DEF-DATA-001); verified via `test_persistence.py` in Task COMMIT-04. |
 | **D7** | Merge Commits Only (No Squash Merging) | All Modules, Git | **Proposed** | Preserves visible TDD red-green-refactor commit trail per guideline. |
 | **CR-01** | Factory Method Pattern & Second Strategy | M3, M4, M2, M5 | **Proposed (Needs Confirmation)** | Satisfies SE423 rubric requiring $\ge 3$ patterns including $\ge 1$ creational. |
 | **CR-02** | Background Concurrency Job for Reports | M5 (Toqeer), Core | **Proposed (Needs Confirmation)** | Satisfies SE423 concurrency rubric using `ThreadPoolExecutor`. |
@@ -100,18 +100,19 @@
 
 ---
 
-### D6: Synchronous SQLAlchemy 2.0 & Real PostgreSQL
-- **Status**: **Proposed** (Requires team consensus)
+### D6: SQLAlchemy 2.0 ORM & Persistent Relational Storage (SQLite / PostgreSQL Compatible)
+- **Status**: **Adopted / Implemented** (Verified in Task COMMIT-04)
 - **Affected Modules**: All Modules, CI, Local Development
-- **Context**: TC-31 and TC-32 require concurrent submission testing where multiple requests submit attempts simultaneously. Concurrency safety requires pessimistic row-level locking (`SELECT ... FOR UPDATE`). SQLite does not support row-level locks.
+- **Context**: Repositories originally used ephemeral in-memory dictionaries, losing 100% of data across server restarts (DEF-DATA-001). Furthermore, NFR-08 and NFR-09 mandate transaction boundaries and referential integrity.
 - **Decision**:
-  1. Use synchronous SQLAlchemy 2.0 with the `psycopg` (v3) driver.
-  2. Local development and test environments run real PostgreSQL via `docker-compose.yml`.
-  3. GitHub Actions CI spins up a `postgres:15-alpine` service container.
-- **Impact**: Guarantees identical SQL semantics between local testing, CI, and evaluation. Requires Docker to be installed on developer machines.
+  1. Implement synchronous SQLAlchemy 2.0 ORM declarative models across all persistent entities in `backend/app/models/`.
+  2. Implement centralized session management in `backend/app/db/session.py` with automatic table creation via `init_db()` during application lifespan startup.
+  3. Default to SQLite (`sqlite:///./adaptlearn.db`) for zero-dependency local development, rapid unit/integration testing, and offline grading.
+  4. Write all models and repository operations using standard dialect-agnostic SQLAlchemy 2.0 constructs so switching to PostgreSQL requires only setting the `DATABASE_URL` environment variable (e.g., `postgresql+psycopg://...`).
+- **Impact**: Resolves DEF-DATA-001 with 100% restart survival. Preserves strict NFR-05 isolation (pure engine has zero SQLAlchemy imports). Verified by 9 restart-survival and persistence tests in `backend/tests/unit/test_persistence.py`.
 - **Alternatives Considered**:
-  - *SQLite in-memory for tests*: Rejected because concurrency race tests (`test_mastery_race.py`) cannot demonstrate real database locking on SQLite.
-  - *Async SQLAlchemy (asyncpg)*: Rejected as unnecessary complexity for a course project; synchronous connection pools are simpler to debug and audit.
+  - *PostgreSQL-only with mandatory Docker*: Rejected as sole option because local evaluator/student environments may lack running Docker daemons; SQLite provides an identical ORM interface without external infrastructure hurdles.
+  - *JSON file store or Pickle*: Rejected due to lack of ACID transactions, lack of concurrent write locking, and lack of schema constraints.
 
 ---
 

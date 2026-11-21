@@ -1,12 +1,17 @@
-"""Database models package.
+"""Database models package."""
+from app.db.base import Base
+from app.models.adaptive import CourseSettingsModel, CourseTopicModel, StudentTopicResponseModel
+from app.models.progress import AttemptModel, CourseOwnerModel, EnrollmentModel, QuestionStatsModel
+from app.models.user import UserModel
 
-ORM models (e.g., SQLAlchemy or SQLModel) representing entities such as:
-- User, Course, Enrollment (M1)
-- Quiz, Question, Submission (M2)
-- AdaptiveRule, MasteryScore (M3)
-- LearningPath, Milestone (M4)
-- AnalyticsMetric, ProgressRecord (M5)
-
-will be added here in subsequent tasks.
-"""
-
+__all__ = [
+    "Base",
+    "CourseSettingsModel",
+    "StudentTopicResponseModel",
+    "CourseTopicModel",
+    "EnrollmentModel",
+    "CourseOwnerModel",
+    "AttemptModel",
+    "QuestionStatsModel",
+    "UserModel",
+]

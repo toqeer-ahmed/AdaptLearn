@@ -4,7 +4,7 @@
 > **Project**: AdaptLearn<br>
 > **Course**: Software Quality Assurance (SE431)<br>
 > **Standard Reference**: IEEE Std 1044 (Standard Classification for Software Anomalies)<br>
-> **Current Active Defects**: **5 active defects (3 resolved)** *(Updated post Task COMMIT-03: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003 resolved)*
+> **Current Active Defects**: **4 active defects (4 resolved)** *(Updated post Task COMMIT-04: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003, DEF-DATA-001 resolved)*
 
 ---
 
@@ -33,7 +33,7 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 | **DEF-AUTH-001** | FINAL-03 Audit | Frontend/backend token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | S1 - Critical | P1 - Immediate | `frontend/src/context/presets.js`<br>`frontend/src/api/client.js`<br>`backend/app/core/auth.py:24` | Toqeer Ahmed | **RESOLVED** | CAPA-AUTH-001 | Verified by `backend/tests/unit/test_auth.py` (18/18 passed) |
 | **DEF-AUTH-002** | FINAL-03 Audit | Auth credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks (simulated regex). | S1 - Critical | P1 - Immediate | `backend/app/core/security.py`<br>`backend/app/core/auth.py` | Toqeer Ahmed | **RESOLVED** | CAPA-AUTH-002 | Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed) |
 | **DEF-AUTH-003** | FINAL-03 Audit | Missing backend user registration, login, and salted bcrypt password hashing endpoints. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/core/security.py` | Toqeer / Hiba | **RESOLVED** | CAPA-AUTH-003 | Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed) |
-| **DEF-DATA-001** | FINAL-03 Audit | Repositories rely on volatile in-memory dicts; 100% data loss across restart; zero ACID transactions. | S2 - Major | P1 - Immediate | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | Toqeer Ahmed | **OPEN** | CAPA-DATA-001 | Awaiting Batch C fix |
+| **DEF-DATA-001** | FINAL-03 Audit | Repositories rely on volatile in-memory dicts; 100% data loss across restart; zero ACID transactions. | S2 - Major | P1 - Immediate | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | Toqeer Ahmed | **RESOLVED** | CAPA-DATA-001 | Verified by `backend/tests/unit/test_persistence.py` (9/9 passed) |
 | **DEF-MOD-001** | FINAL-03 Audit | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main` branch. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18-21` | Hiba / Mustajaab | **OPEN** | CAPA-MOD-001 | Awaiting Batch D merge |
 | **DEF-ARCH-001** | FINAL-03 Audit | SE423 rubric requirement for Creational Pattern (Factory Method) unmet (only dictionary lookup exists). | S3 - Moderate | P2 - High | `backend/app/engine/recommendation_strategy.py:230-254` | Toqeer Ahmed | **OPEN** | CAPA-ARCH-001 | Awaiting Batch B fix |
 | **DEF-FE-001** | FINAL-03 Audit | Frontend Assessment and Authentication views operate in simulated/preview mode with blocked backend endpoints. | S2 - Major | P2 - High | `frontend/src/components/AssessmentView.jsx`<br>`frontend/src/components/AuthView.jsx` | Toqeer Ahmed | **OPEN** | CAPA-FE-001 | Awaiting Batch A/D fix |
@@ -203,8 +203,28 @@ All data is lost upon server reload or restart.
 #### Associated CAPA Reference
 - `CAPA-DATA-001` (Batch C fast-track closure)
 
+#### Corrective Action Taken
+1. **SQLAlchemy 2.0 ORM Integration**:
+   - Added `sqlalchemy>=2.0.0,<3.0.0` dependency to `backend/requirements.txt`.
+   - Created `backend/app/db/base.py` (`DeclarativeBase`) and `backend/app/db/session.py` providing dialect-agnostic engine creation, session factory (`SessionLocal`), and `init_db()` startup hook.
+2. **Declarative Persistence Models**:
+   - Created `backend/app/models/adaptive.py` (`CourseSettingsModel`, `StudentTopicResponseModel`, `CourseTopicModel`).
+   - Created `backend/app/models/progress.py` (`EnrollmentModel`, `CourseOwnerModel`, `AttemptModel`, `QuestionStatsModel`).
+   - Created `backend/app/models/user.py` (`UserModel`).
+   - Registered all models with `Base.metadata` in `backend/app/models/__init__.py`.
+3. **Persistent Transactional Repositories**:
+   - Refactored `AdaptiveRepository`, `ProgressRepository`, and `UserRepository` to execute queries and transactional commits/rollbacks via SQLAlchemy sessions.
+   - Maintained 100% backward compatibility for all public method signatures, domain dataclass return types (`MasteryParameters`, `ResponseRecord`, `TopicRecommendationInput`, `AttemptRecord`, `QuestionStatsRecord`), and caller contracts.
+   - Seeded default personas (`student@adaptlearn.edu`, `instructor@adaptlearn.edu`) upon database initialization.
+4. **App Startup Hook**:
+   - Updated `backend/app/main.py` lifespan handler to invoke `init_db()` ensuring all tables exist before serving HTTP traffic.
+5. **Restart Survival & Concurrency Tests**:
+   - Authored comprehensive test suite in `backend/tests/unit/test_persistence.py` demonstrating data persistence across repository instance destruction and recreation against physical SQLite database files.
+
 #### Resolution & Verification
-- **Status**: **OPEN**
+- **Status**: **RESOLVED**
+- **Verified Date**: 2026-11-21
+- **Verification Evidence**: All 9 persistence tests in `backend/tests/unit/test_persistence.py` passed; 144 total backend tests passing. State reload verified on disk with zero data loss.
 
 ---
 

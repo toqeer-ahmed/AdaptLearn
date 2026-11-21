@@ -57,6 +57,11 @@ backend/.env
 frontend/.env
 frontend/.env.local
 
+# Local SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
 # IDEs and Editors
 .vscode/
 .idea/

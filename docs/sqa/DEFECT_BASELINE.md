@@ -34,7 +34,7 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
 | **DEF-AUTH-001** | Frontend preset token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-14 | `frontend/src/context/presets.js`<br>`frontend/src/api/client.js`<br>`backend/app/core/auth.py` | **RESOLVED** | Batch A (COMMIT-02) |
 | **DEF-AUTH-002** | Authentication credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-05 | `backend/app/core/security.py`<br>`backend/app/core/auth.py` | **RESOLVED** | Batch B (COMMIT-03) |
 | **DEF-AUTH-003** | Missing user registration, login, and bcrypt password hashing backend endpoints. | **S1 (Critical)** | **P1 (Immediate)** | FR-01, FR-02, NFR-03 | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/core/security.py` | **RESOLVED** | Batch B (COMMIT-03) |
-| **DEF-DATA-001** | Repositories rely on volatile in-memory dicts; 100% data loss across server restart; zero ACID transactions. | **S2 (Major)** | **P1 (Immediate)** | NFR-08, NFR-09 | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | **OPEN** | Batch C |
+| **DEF-DATA-001** | Repositories rely on volatile in-memory dicts; 100% data loss across server restart; zero ACID transactions. | **S2 (Major)** | **P1 (Immediate)** | NFR-08, NFR-09 | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | **RESOLVED** | Batch C (COMMIT-04) |
 | **DEF-MOD-001** | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main`. | **S1 (Critical)** | **P1 (Immediate)** | FR-01..FR-14 | `backend/app/api/v1/api.py` | **OPEN** | Batch D |
 | **DEF-ARCH-001** | SE423 rubric requirement for Creational Design Pattern (Factory Method) is unmet (only dictionary lookup exists). | **S3 (Moderate)** | **P2 (High)** | SE423 Rubric | `backend/app/engine/recommendation_strategy.py` | **OPEN** | Batch B |
 | **DEF-FE-001** | Frontend Assessment and Authentication views operate in simulated/preview mode with blocked backend endpoints. | **S2 (Major)** | **P2 (High)** | FR-01, FR-02, FR-08..FR-14 | `frontend/src/components/AssessmentView.jsx`<br>`frontend/src/components/AuthView.jsx` | **OPEN** | Batch A / Batch D |
@@ -137,7 +137,9 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
   - No SQL transactions (`commit`/`rollback`) exist; failure leaves state in undefined memory condition.
 - **Expected Behavior**: Submitted attempts, settings, and progress records must persist across application restarts and execute in atomic transactions.
 - **Actual Behavior**: Storage is 100% ephemeral and volatile in memory.
-- **Planned Corrective Action (Batch C)**: Implement a file-backed persistent repository double (SQLite or JSON disk store) with pre-seeded demonstration data.
+- **Planned Corrective Action (Batch C)**: Implement persistent SQLAlchemy ORM repository storage backed by SQLite for local development and testing, with PostgreSQL dialect compatibility.
+- **Resolution Status**: **RESOLVED** (Task COMMIT-04)
+- **Resolution Verification**: Implemented SQLAlchemy 2.0 ORM models in `backend/app/models/`, session management in `backend/app/db/session.py`, and refactored `AdaptiveRepository`, `ProgressRepository`, and `UserRepository` to execute atomic transactional database operations. Verified across 9 restart-survival and persistence tests in `backend/tests/unit/test_persistence.py`. 144 total backend tests pass.
 
 ---
 

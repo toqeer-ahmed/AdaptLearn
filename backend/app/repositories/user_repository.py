@@ -5,11 +5,17 @@ Requirements Traceability:
 - FR-02: User authentication lookup.
 - NFR-03: Passwords stored only as salted hashes.
 - NFR-09: Uniqueness enforcement.
+- NFR-07 & NFR-08: Persistent database storage.
 """
 from dataclasses import dataclass
 from typing import Optional
 
+from sqlalchemy import func
+from sqlalchemy.orm import Session, sessionmaker
+
 from app.core.security import hash_password
+from app.db.session import SessionLocal, init_db
+from app.models.user import UserModel
 
 
 @dataclass
@@ -24,58 +30,58 @@ class UserRecord:
 
 
 class UserRepository:
-    """In-memory thread-safe repository managing user records."""
+    """SQLAlchemy persistent repository managing user records."""
 
-    def __init__(self) -> None:
-        self._users: dict[int, UserRecord] = {}
-        self._users_by_email: dict[str, int] = {}
-        self._next_id: int = 1
+    def __init__(self, session_factory: Optional[sessionmaker[Session]] = None) -> None:
+        self.session_factory = session_factory or SessionLocal
+        init_db()
         self.seed_default_users()
 
     def seed_default_users(self) -> None:
         """Seed verified default personas with pre-hashed credentials for development and testing."""
         default_pwd_hash = hash_password("Password123!")
 
-        # Instructor Ada Lovelace (ID: 1)
-        if 1 not in self._users:
-            u1 = UserRecord(
-                id=1,
-                name="Prof. Ada Lovelace",
-                email="lovelace@instructor.adaptlearn.edu",
-                password_hash=default_pwd_hash,
-                role="instructor",
-            )
-            self._users[1] = u1
-            self._users_by_email[u1.email.lower()] = 1
+        with self.session_factory() as session:
+            # Instructor Ada Lovelace (ID: 1)
+            if not session.query(UserModel).filter_by(id=1).first():
+                session.add(
+                    UserModel(
+                        id=1,
+                        name="Prof. Ada Lovelace",
+                        email="lovelace@instructor.adaptlearn.edu",
+                        password_hash=default_pwd_hash,
+                        role="instructor",
+                        is_active=True,
+                    )
+                )
 
-        # Non-owner Instructor Alan Turing (ID: 2)
-        if 2 not in self._users:
-            u2 = UserRecord(
-                id=2,
-                name="Prof. Alan Turing",
-                email="turing@instructor.adaptlearn.edu",
-                password_hash=default_pwd_hash,
-                role="instructor",
-            )
-            self._users[2] = u2
-            self._users_by_email[u2.email.lower()] = 2
+            # Non-owner Instructor Alan Turing (ID: 2)
+            if not session.query(UserModel).filter_by(id=2).first():
+                session.add(
+                    UserModel(
+                        id=2,
+                        name="Prof. Alan Turing",
+                        email="turing@instructor.adaptlearn.edu",
+                        password_hash=default_pwd_hash,
+                        role="instructor",
+                        is_active=True,
+                    )
+                )
 
-        # Student Alice (ID: 101)
-        if 101 not in self._users:
-            u101 = UserRecord(
-                id=101,
-                name="Alice Student",
-                email="alice@student.adaptlearn.edu",
-                password_hash=default_pwd_hash,
-                role="student",
-            )
-            self._users[101] = u101
-            self._users_by_email[u101.email.lower()] = 101
+            # Student Alice (ID: 101)
+            if not session.query(UserModel).filter_by(id=101).first():
+                session.add(
+                    UserModel(
+                        id=101,
+                        name="Alice Student",
+                        email="alice@student.adaptlearn.edu",
+                        password_hash=default_pwd_hash,
+                        role="student",
+                        is_active=True,
+                    )
+                )
 
-        # Ensure next_id does not collide with preset IDs
-        max_id = max(self._users.keys(), default=0)
-        if self._next_id <= max_id:
-            self._next_id = max_id + 1
+            session.commit()
 
     def create_user(
         self,
@@ -90,41 +96,71 @@ class UserRepository:
             ValueError: If email is already registered.
         """
         normalized_email = email.strip().lower()
-        if normalized_email in self._users_by_email:
-            raise ValueError(f"Email '{email}' is already registered")
 
-        user_id = self._next_id
-        self._next_id += 1
+        with self.session_factory() as session:
+            existing = session.query(UserModel).filter_by(email=normalized_email).first()
+            if existing is not None:
+                raise ValueError(f"Email '{email}' is already registered")
 
-        user = UserRecord(
-            id=user_id,
-            name=name.strip(),
-            email=normalized_email,
-            password_hash=password_hash,
-            role=role.strip().lower(),
-            is_active=True,
-        )
-        self._users[user_id] = user
-        self._users_by_email[normalized_email] = user_id
-        return user
+            max_id = session.query(func.max(UserModel.id)).scalar() or 0
+            next_id = max(max_id + 1, 102) if max_id >= 101 else max_id + 1
+
+            user = UserModel(
+                id=next_id,
+                name=name.strip(),
+                email=normalized_email,
+                password_hash=password_hash,
+                role=role.strip().lower(),
+                is_active=True,
+            )
+            session.add(user)
+            session.commit()
+
+            return UserRecord(
+                id=user.id,
+                name=user.name,
+                email=user.email,
+                password_hash=user.password_hash,
+                role=user.role,
+                is_active=user.is_active,
+            )
 
     def get_by_id(self, user_id: int) -> Optional[UserRecord]:
         """Look up user by primary key."""
-        return self._users.get(user_id)
+        with self.session_factory() as session:
+            u = session.query(UserModel).filter_by(id=user_id).first()
+            if u:
+                return UserRecord(
+                    id=u.id,
+                    name=u.name,
+                    email=u.email,
+                    password_hash=u.password_hash,
+                    role=u.role,
+                    is_active=u.is_active,
+                )
+            return None
 
     def get_by_email(self, email: str) -> Optional[UserRecord]:
         """Look up user by email address (case-insensitive)."""
         normalized = email.strip().lower()
-        user_id = self._users_by_email.get(normalized)
-        if user_id is not None:
-            return self._users.get(user_id)
-        return None
+        with self.session_factory() as session:
+            u = session.query(UserModel).filter_by(email=normalized).first()
+            if u:
+                return UserRecord(
+                    id=u.id,
+                    name=u.name,
+                    email=u.email,
+                    password_hash=u.password_hash,
+                    role=u.role,
+                    is_active=u.is_active,
+                )
+            return None
 
     def clear(self) -> None:
         """Clear all stored users and reseed defaults."""
-        self._users.clear()
-        self._users_by_email.clear()
-        self._next_id = 1
+        with self.session_factory() as session:
+            session.query(UserModel).delete()
+            session.commit()
         self.seed_default_users()
 
 

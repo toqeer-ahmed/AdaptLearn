@@ -16,6 +16,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    # Database persistence (NFR-07, NFR-08, NFR-09, Decision D6)
+    DATABASE_URL: str = "sqlite:///./adaptlearn.db"
+
     # Authentication & Cryptographic Security (NFR-03, NFR-04, NFR-05)
     JWT_SECRET_KEY: str = "adaptlearn-dev-jwt-secret-key-must-be-at-least-32-bytes-long-for-hs256"
     JWT_ALGORITHM: str = "HS256"
