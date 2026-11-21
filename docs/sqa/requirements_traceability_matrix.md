@@ -1,10 +1,10 @@
 # Requirements Traceability Matrix (RTM)
 
-> **Document Status**: Active / Updated Baseline<br>
+> **Document Status**: Active / Reconciled Quality Baseline (Post Commits 2–6)<br>
 > **Project**: AdaptLearn<br>
 > **Course**: Software Quality Assurance (SE431)<br>
 > **Source Baseline**: `docs/requirements.md` (Transferred from Official Milestone 1 Report §4.1–§5.2)<br>
-> **Evidence Cutoff**: 82 Automated Backend Tests Executed & Passed (Pytest 9.2.0, Python 3.10.11)
+> **Evidence Cutoff**: 150 Automated Backend Tests Executed & Passed (Pytest 9.2.0, Python 3.10.11)
 
 ---
 
@@ -20,8 +20,8 @@ In accordance with `AGENTS.md` (Zero Fabrication Policy), requirements are marke
 
 | Requirement ID | Requirement Description | Source Baseline | Module & Owner | Implementation Reference | Test Case ID | Verification Status | Evidence Reference |
 | :---: | :--- | :--- | :---: | :--- | :--- | :---: | :--- |
-| **FR-01** | User registration with name, unique email, password, role (Student/Instructor). | M1 §4.1 | M1 (Hiba) | *Not Implemented* | TC-01-1, TC-01-2, TC-01-3 | **Not Implemented** | Awaiting Module 1 implementation |
-| **FR-02** | User login and logout with JWT session tokens. | M1 §4.1 | M1 (Hiba) | *Not Implemented* | TC-02-1, TC-02-2, TC-02-3 | **Not Implemented** | Awaiting Module 1 implementation |
+| **FR-01** | User registration with name, unique email, password, role (Student/Instructor). | M1 §4.1 | M1 (Hiba / Core) | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/services/auth_service.py`<br>`backend/app/repositories/user_repository.py` | TC-01-1, TC-01-2, TC-01-3 | **Verified** | `backend/tests/unit/test_security_auth.py::TestUserRegistrationApi` (7 tests passed: valid creation, duplicate 409 rejection, field validation) |
+| **FR-02** | User login and logout with JWT session tokens. | M1 §4.1 | M1 (Hiba / Core) | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/services/auth_service.py`<br>`backend/app/core/security.py` | TC-02-1, TC-02-2, TC-02-3 | **Verified** | `backend/tests/unit/test_security_auth.py::TestUserLoginApi` (4 tests passed: token issuance, generic 401 on invalid pass/email) |
 | **FR-03** | Server-side role-based access control per course and user role. | M1 §4.1 | Cross-Cutting | `backend/app/core/auth.py`<br>`backend/app/api/v1/endpoints/analytics.py`<br>`backend/app/api/v1/endpoints/progress.py` | TC-03-1, TC-03-2, TC-22-2 | **Verified** | `tests/integration/test_instructor_analytics_api.py::test_student_calling_instructor_endpoint_rejected_tc_03_1`<br>`tests/integration/test_instructor_analytics_api.py::test_wrong_instructor_calling_course_rejected_tc_22_2` |
 | **FR-04** | Student enrollment in course via course code. | M1 §4.1 | M1 (Hiba) | *Not Implemented* | TC-04-1, TC-04-2, TC-04-3 | **Not Implemented** | Awaiting Module 1 implementation |
 | **FR-05** | Instructor create, edit, archive courses; archived reject attempts. | M1 §4.1 | M1 (Hiba) | *Not Implemented* | TC-05-1, TC-05-2 | **Not Implemented** | Awaiting Module 1 implementation |
@@ -54,8 +54,8 @@ In accordance with `AGENTS.md` (Zero Fabrication Policy), requirements are marke
 | :---: | :---: | :--- | :--- | :--- | :---: | :--- |
 | **NFR-01** | Performance | 95% of ordinary requests complete within 2s with 50 concurrent users. | Infrastructure / Deployment | Locust load test harness | **Not Verified** | Awaiting production container environment & load test setup |
 | **NFR-02** | Performance | Grading and mastery recalculation for up to 30 questions completes within 3s. | `backend/app/engine/mastery_calculator.py` | Benchmark test suite | **Not Verified** | Single attempt runs in <10ms; formal 30-question load benchmark pending |
-| **NFR-03** | Security | Passwords stored only as salted bcrypt hashes; never logged or returned. | `backend/app/core/security.py` | Auth service unit tests | **Not Implemented** | Awaiting Module 1 authentication implementation |
-| **NFR-04** | Security | Sessions use signed tokens with expiry; reject invalid or expired tokens. | `backend/app/core/auth.py` | Security header integration tests | **Partially Verified** | `tests/integration/test_progress_api.py::test_get_progress_unauthenticated`<br>`tests/integration/test_instructor_analytics_api.py::test_unauthenticated_request_rejected` |
+| **NFR-03** | Security | Passwords stored only as salted bcrypt hashes; never logged or returned. | `backend/app/core/security.py` | Bcrypt salt & hash verification tests | **Verified** | `backend/tests/unit/test_security_auth.py::TestPasswordHashingBcrypt` (3 tests passed: 12-round salt, unique hashes, safe verification) |
+| **NFR-04** | Security | Sessions use signed tokens with expiry; reject invalid or expired tokens. | `backend/app/core/security.py`<br>`backend/app/core/auth.py` | Cryptographic JWT token & header tests | **Verified** | `backend/tests/unit/test_security_auth.py::TestJWTCryptographicTokens` (5 tests passed)<br>`backend/tests/unit/test_auth.py` (18 tests passed) |
 | **NFR-05** | Security / Arch | Server-side access control on all endpoints; pure engine isolation (zero web/ORM imports). | `backend/app/core/auth.py`<br>`backend/app/engine/` | Role check integration tests & AST architecture scanner | **Verified** | `tests/architecture/test_layers.py` (11 tests passed: zero framework imports in `app/engine/`)<br>`tests/integration/test_instructor_analytics_api.py` |
 | **NFR-06** | Privacy | Student results and mastery visible only to that student and course instructor. | `backend/app/api/v1/endpoints/progress.py`<br>`backend/app/services/progress_service.py` | Multi-tenant privacy integration tests | **Verified** | `tests/integration/test_progress_api.py::test_get_progress_forbidden_cross_student_access`<br>`tests/integration/test_progress_api.py::test_student_cannot_view_other_student_attempts` |
 | **NFR-07** | Security | Parameterized queries via ORM against SQL injection; no committed repository secrets. | Repository layer & `.gitignore` | AST import verification & Git history check | **Verified** | Confirmed zero raw SQL string interpolations; `.env` excluded via `.gitignore` |
@@ -87,22 +87,21 @@ In accordance with `AGENTS.md` (Zero Fabrication Policy), requirements are marke
 ## 5. Traceability Status Summary
 
 - **Total Requirements Documented**: 47 (25 Functional, 21 Non-Functional, 1 Core System)
-- **Verified Requirements**: 22 (46.8%)
-  - FR: FR-03, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-22, FR-23, FR-24 (11 FRs)
-  - NFR: NFR-05, NFR-06, NFR-07, NFR-10, NFR-11, NFR-15, NFR-16, NFR-17, NFR-18, NFR-19, NFR-20 (11 NFRs)
+- **Verified Requirements**: 28 (59.6%)
+  - FR: FR-01, FR-02, FR-03, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-22, FR-23, FR-24 (13 FRs)
+  - NFR: NFR-03, NFR-04, NFR-05, NFR-06, NFR-07, NFR-09, NFR-10, NFR-11, NFR-15, NFR-16, NFR-17, NFR-18, NFR-19, NFR-20 (14 NFRs)
   - Core: REQ-SYS-001 (1 Core)
-- **Partially Verified Requirements**: 4 (8.5%)
-  - FR-25 (Input validation verified for M3/M5 schemas)
-  - NFR-04 (Role and bearer token rejection verified; JWT generation pending M1)
-  - NFR-09 (Integrity verified in Pydantic models; PostgreSQL constraints pending)
-  - NFR-14 (Plain error responses verified for M3/M5 endpoints)
-- **Not Implemented / Pending Modules**: 16 (34.0%)
-  - Module 1 (Hiba): FR-01, FR-02, FR-04, FR-05, FR-06, FR-07, NFR-03 (7 requirements)
-  - Module 2 (Mustajaab): FR-08, FR-09, FR-10, FR-11, FR-12, FR-13, FR-14, NFR-08 (8 requirements)
+- **Partially Verified Requirements**: 2 (4.3%)
+  - FR-25 (Server-side input validation verified for implemented Auth, M3, and M5 schemas; M1/M2 schemas pending)
+  - NFR-08 (Atomic repository transactions verified in `test_persistence.py`; end-to-end quiz submission orchestration pending Module 2)
+- **Not Implemented / Pending Modules**: 12 (25.5%)
+  - Module 1 (Hiba): FR-04, FR-05, FR-06, FR-07 (4 requirements)
+  - Module 2 (Mustajaab): FR-08, FR-09, FR-10, FR-11, FR-12, FR-13, FR-14 (7 requirements)
   - Database: NFR-21 (1 requirement)
 - **Not Verified (Awaiting Execution/Environment)**: 5 (10.6%)
   - NFR-01, NFR-02 (Load and performance testing harness)
   - NFR-12, NFR-13 (Frontend peer usability and viewport testing)
+  - NFR-14 (Plain error responses across unbuilt teammate modules)
 
 ---
 

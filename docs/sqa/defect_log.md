@@ -4,7 +4,7 @@
 > **Project**: AdaptLearn<br>
 > **Course**: Software Quality Assurance (SE431)<br>
 > **Standard Reference**: IEEE Std 1044 (Standard Classification for Software Anomalies)<br>
-> **Current Active Defects**: **3 active defects (5 resolved)** *(Updated post Task COMMIT-05: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003, DEF-DATA-001, DEF-ARCH-001 resolved)*
+> **Current Active Defects**: **2 active defects (6 resolved)** *(Updated post Task COMMIT-07: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003, DEF-DATA-001, DEF-ARCH-001, DEF-DOC-001 resolved)*
 
 ---
 
@@ -37,7 +37,7 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 | **DEF-MOD-001** | FINAL-03 Audit | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main` branch. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18-21` | Hiba / Mustajaab | **OPEN** | CAPA-MOD-001 | Awaiting Batch D merge |
 | **DEF-ARCH-001** | FINAL-03 Audit | SE423 rubric requirement for Creational Pattern (Factory Method) unmet (only dictionary lookup exists). | S3 - Moderate | P2 - High | `backend/app/engine/recommendation_strategy.py`<br>`backend/app/services/adaptive_service.py` | Toqeer Ahmed | **RESOLVED** | CAPA-ARCH-001 | Verified by `backend/tests/unit/test_recommendation_strategy.py` (18/18 passed) |
 | **DEF-FE-001** | FINAL-03 Audit | Frontend Assessment and Authentication views operate in simulated/preview mode with blocked backend endpoints. | S2 - Major | P2 - High | `frontend/src/components/AssessmentView.jsx`<br>`frontend/src/components/AuthView.jsx` | Toqeer Ahmed | **OPEN** | CAPA-FE-001 | Awaiting Batch A/D fix |
-| **DEF-DOC-001** | FINAL-03 Audit | SQA documentation test count discrepancy: earlier documents cite 82 tests while execution reports cite 87 tests. | S3 - Moderate | P2 - High | `docs/sqa/requirements_traceability_matrix.md`<br>`docs/sqa/risk_register.md`<br>`docs/sqa/formal_inspection_report.md` | Toqeer Ahmed | **OPEN** | CAPA-DOC-001 | Awaiting Batch A fix |
+| **DEF-DOC-001** | FINAL-03 Audit | SQA documentation test count discrepancy: earlier documents cite 82/87 tests instead of 150. | S3 - Moderate | P2 - High | `docs/sqa/requirements_traceability_matrix.md`<br>`docs/sqa/risk_register.md`<br>`docs/sqa/formal_inspection_report.md`<br>`docs/sqa/test_execution_report.md` | Toqeer Ahmed | **RESOLVED** | CAPA-DOC-001 | Verified in Task COMMIT-07 across all 14 test modules (150/150 passed) |
 | *[DEF-FND-001]* | FND-001 | *[Pending live Fagan inspection meeting with external faculty evaluator]* | S1/S2/S3/S4 | P1/P2/P3/P4 | `backend/app/engine/...` | Assignee | *Pending* | CAPA-001 | Awaiting inspection |
 
 ---
@@ -353,19 +353,24 @@ All quality documents cite the identical, accurate automated test count (87 pass
 #### Actual Result
 Earlier SQA documents report 82 tests, out of sync with actual 87 tests.
 
-#### Associated CAPA Reference
-- `CAPA-DOC-001` (Batch A fast-track closure)
+#### Corrective Action Taken
+1. Executed full automated regression suite verifying exact test distribution across 14 test modules (150 tests total).
+2. Updated all upstream and downstream SQA documentation (`requirements_traceability_matrix.md`, `test_execution_report.md`, `verification_validation_plan.md`, `risk_register.md`, `formal_inspection_report.md`) to cite the verified 150-test evidence baseline.
+3. Aligned RTM status and test execution reports with verified post-fix implementation artifacts.
 
 #### Resolution & Verification
-- **Status**: **OPEN**
+- **Status**: **RESOLVED**
+- **Verified Date**: 2026-11-21
+- **Verification Evidence**: All SQA documents synchronized to cite 150 automated passing tests; verified by Pytest run (`150 passed in 35.39s`).
 
 ---
 
 ## 4. Defect Metrics & Current Quality Summary
 
-- **Total Defects Logged**: **8**
-- **Open Defects**: **8**
-- **Closed / Verified Defects**: **0**
-- **Automated Regression Status**: **87 passed in 3.79s (100% pass rate)**
-- **Static Analysis Status**: 0 errors, 0 warnings (Ruff, Oxlint, MyPy clean)
+- **Total Baseline Defects Logged**: **8**
+- **Open Defects**: **2** (`DEF-MOD-001` missing teammate modules, `DEF-FE-001` frontend quiz view blocked)
+- **Closed / Verified Defects**: **6** (`DEF-AUTH-001`, `DEF-AUTH-002`, `DEF-AUTH-003`, `DEF-DATA-001`, `DEF-ARCH-001`, `DEF-DOC-001`)
+- **Pending External Inspection**: **1** (`DEF-FND-001` awaiting live Fagan meeting)
+- **Automated Regression Status**: **150 passed in 35.39s (100% pass rate across 14 test modules)**
+- **Static Analysis Status**: 0 errors, 0 warnings (Ruff check clean, Oxlint clean across 15 files)
 - **Inspection Dependency**: Formal Fagan package prepared (`docs/sqa/formal_inspection_report.md`); live meeting pending external faculty assignment.
