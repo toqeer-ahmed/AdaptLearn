@@ -4,7 +4,7 @@
 > **Project**: AdaptLearn<br>
 > **Course**: Software Quality Assurance (SE431)<br>
 > **Standard Reference**: IEEE Std 1044 (Standard Classification for Software Anomalies)<br>
-> **Current Active Defects**: **7 active defects (1 resolved)** *(Updated post Task COMMIT-02: DEF-AUTH-001 resolved)*
+> **Current Active Defects**: **5 active defects (3 resolved)** *(Updated post Task COMMIT-03: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003 resolved)*
 
 ---
 
@@ -31,8 +31,8 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 | Defect ID | Source & Finding Ref | Description | Severity | Priority | Affected File & Line | Assigned Owner | Resolution Status | CAPA Ref | Retest Evidence |
 | :---: | :---: | :--- | :---: | :---: | :--- | :---: | :---: | :---: | :--- |
 | **DEF-AUTH-001** | FINAL-03 Audit | Frontend/backend token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | S1 - Critical | P1 - Immediate | `frontend/src/context/presets.js`<br>`frontend/src/api/client.js`<br>`backend/app/core/auth.py:24` | Toqeer Ahmed | **RESOLVED** | CAPA-AUTH-001 | Verified by `backend/tests/unit/test_auth.py` (18/18 passed) |
-| **DEF-AUTH-002** | FINAL-03 Audit | Auth credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks (simulated regex). | S1 - Critical | P1 - Immediate | `backend/app/core/auth.py:27-56` | Toqeer Ahmed | **OPEN** | CAPA-AUTH-002 | Awaiting Batch B fix |
-| **DEF-AUTH-003** | FINAL-03 Audit | Missing backend user registration, login, and salted bcrypt password hashing endpoints. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18`<br>`backend/app/core/` | Toqeer / Hiba | **OPEN** | CAPA-AUTH-003 | Awaiting Batch B/D fix |
+| **DEF-AUTH-002** | FINAL-03 Audit | Auth credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks (simulated regex). | S1 - Critical | P1 - Immediate | `backend/app/core/security.py`<br>`backend/app/core/auth.py` | Toqeer Ahmed | **RESOLVED** | CAPA-AUTH-002 | Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed) |
+| **DEF-AUTH-003** | FINAL-03 Audit | Missing backend user registration, login, and salted bcrypt password hashing endpoints. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/core/security.py` | Toqeer / Hiba | **RESOLVED** | CAPA-AUTH-003 | Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed) |
 | **DEF-DATA-001** | FINAL-03 Audit | Repositories rely on volatile in-memory dicts; 100% data loss across restart; zero ACID transactions. | S2 - Major | P1 - Immediate | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | Toqeer Ahmed | **OPEN** | CAPA-DATA-001 | Awaiting Batch C fix |
 | **DEF-MOD-001** | FINAL-03 Audit | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main` branch. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18-21` | Hiba / Mustajaab | **OPEN** | CAPA-MOD-001 | Awaiting Batch D merge |
 | **DEF-ARCH-001** | FINAL-03 Audit | SE423 rubric requirement for Creational Pattern (Factory Method) unmet (only dictionary lookup exists). | S3 - Moderate | P2 - High | `backend/app/engine/recommendation_strategy.py:230-254` | Toqeer Ahmed | **OPEN** | CAPA-ARCH-001 | Awaiting Batch B fix |
@@ -118,8 +118,19 @@ Tokens are simulated via plaintext string regex matching without cryptographic v
 #### Associated CAPA Reference
 - `CAPA-AUTH-002` (Batch B fast-track closure)
 
+#### Corrective Action Taken
+1. **Cryptographic JWT Implementation**:
+   - Implemented standard JWT encoding and decoding in `backend/app/core/security.py` using `pyjwt` (HS256 algorithm) with mandatory 60-minute expiration.
+   - Configured `JWT_SECRET_KEY` in `backend/app/core/config.py` using a secure 256-bit key.
+2. **Server-Side Token Verification & Spoofing Prevention**:
+   - Refactored `get_current_user` in `backend/app/core/auth.py` to validate JWT signatures, expiry timestamps, and required claims (`sub`, `role`, `exp`, `iat`).
+   - Validates user identity and role against `UserRepository` to prevent user ID and role claim spoofing.
+   - Guarded development fallback behind `settings.ALLOW_DEV_TOKENS=False` in production.
+
 #### Resolution & Verification
-- **Status**: **OPEN**
+- **Status**: **RESOLVED**
+- **Verified Date**: 2026-11-21
+- **Verification Evidence**: Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed). Demonstrates rejection of invalid signatures, expired tokens, missing claims, malformed strings, and user/role spoofing.
 
 ---
 
@@ -128,7 +139,7 @@ Tokens are simulated via plaintext string regex matching without cryptographic v
 - **Reported By**: Toqeer Ahmed (Lead SQA Engineer)
 - **Source**: FINAL-03 Critical Blocker Audit
 - **Assigned To**: Toqeer Ahmed / Hiba Zulfiqar
-- **Module Affected**: `backend/app/api/v1/api.py`, `backend/app/core/`
+- **Module Affected**: `backend/app/api/v1/endpoints/auth.py`, `backend/app/services/auth_service.py`, `backend/app/repositories/user_repository.py`, `backend/app/core/security.py`
 - **Severity**: S1 - Critical
 - **Priority**: P1 - Immediate
 - **Target Baseline Commit**: `efeba33`
@@ -148,8 +159,22 @@ Backend has zero authentication endpoints implemented.
 #### Associated CAPA Reference
 - `CAPA-AUTH-003` (Batch B / Batch D fast-track closure)
 
+#### Corrective Action Taken
+1. **Password Hashing (NFR-03, Decision D5)**:
+   - Implemented `hash_password` and `verify_password` in `backend/app/core/security.py` using `bcrypt` with 12 rounds of salt.
+   - Enforced 8 to 72 character bounds per Decision D5; passwords never logged or returned in responses.
+2. **User Persistence**:
+   - Created `backend/app/repositories/user_repository.py` managing `UserRecord` entities and seeding default personas.
+3. **Authentication Business Logic & Endpoints**:
+   - Created `backend/app/schemas/auth.py` with strict Pydantic v2 validation.
+   - Created `backend/app/services/auth_service.py` with duplicate email rejection (HTTP 409) and generic login failure handling (HTTP 401).
+   - Created `backend/app/api/v1/endpoints/auth.py` exposing `POST /register`, `POST /login`, and `GET /me`.
+   - Mounted auth router on `/api/v1/auth` in `backend/app/api/v1/api.py`.
+
 #### Resolution & Verification
-- **Status**: **OPEN**
+- **Status**: **RESOLVED**
+- **Verified Date**: 2026-11-21
+- **Verification Evidence**: Verified by 30 security tests in `backend/tests/unit/test_security_auth.py` and 135 total backend tests passing. Endpoint contracts documented in `docs/api.md`.
 
 ---
 

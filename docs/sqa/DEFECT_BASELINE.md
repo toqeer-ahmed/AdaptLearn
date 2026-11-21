@@ -32,8 +32,8 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
 | Defect ID | Description | Severity | Priority | Affected Requirement(s) | Affected File(s) | Status | Planned Fix Batch |
 | :---: | :--- | :---: | :---: | :---: | :--- | :---: | :---: |
 | **DEF-AUTH-001** | Frontend preset token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-14 | `frontend/src/context/presets.js`<br>`frontend/src/api/client.js`<br>`backend/app/core/auth.py` | **RESOLVED** | Batch A (COMMIT-02) |
-| **DEF-AUTH-002** | Authentication credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-05 | `backend/app/core/auth.py` | **OPEN** | Batch B |
-| **DEF-AUTH-003** | Missing user registration, login, and bcrypt password hashing backend endpoints. | **S1 (Critical)** | **P1 (Immediate)** | FR-01, FR-02, NFR-03 | `backend/app/api/v1/endpoints/`<br>`backend/app/core/auth.py` | **OPEN** | Batch B / Batch D |
+| **DEF-AUTH-002** | Authentication credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-05 | `backend/app/core/security.py`<br>`backend/app/core/auth.py` | **RESOLVED** | Batch B (COMMIT-03) |
+| **DEF-AUTH-003** | Missing user registration, login, and bcrypt password hashing backend endpoints. | **S1 (Critical)** | **P1 (Immediate)** | FR-01, FR-02, NFR-03 | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/core/security.py` | **RESOLVED** | Batch B (COMMIT-03) |
 | **DEF-DATA-001** | Repositories rely on volatile in-memory dicts; 100% data loss across server restart; zero ACID transactions. | **S2 (Major)** | **P1 (Immediate)** | NFR-08, NFR-09 | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | **OPEN** | Batch C |
 | **DEF-MOD-001** | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main`. | **S1 (Critical)** | **P1 (Immediate)** | FR-01..FR-14 | `backend/app/api/v1/api.py` | **OPEN** | Batch D |
 | **DEF-ARCH-001** | SE423 rubric requirement for Creational Design Pattern (Factory Method) is unmet (only dictionary lookup exists). | **S3 (Moderate)** | **P2 (High)** | SE423 Rubric | `backend/app/engine/recommendation_strategy.py` | **OPEN** | Batch B |
@@ -91,6 +91,8 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
 - **Expected Behavior**: Bearer tokens must be cryptographically signed JWTs containing user claims and expiration timestamps, validated against a server secret key.
 - **Actual Behavior**: Authentication is purely simulated via string pattern matching.
 - **Planned Corrective Action (Batch B)**: Implement PyJWT encoding and decoding with secret key in `config.py`, maintaining backward compatibility for developer tokens.
+- **Resolution Status**: **RESOLVED** (Task COMMIT-03)
+- **Resolution Verification**: Implemented standard HS256 JWT encoding/decoding with 60-minute expiration in `backend/app/core/security.py` and validated against user repository in `backend/app/core/auth.py`. 30 automated security tests pass in `backend/tests/unit/test_security_auth.py`.
 
 ---
 
@@ -110,6 +112,8 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
 - **Expected Behavior**: Users can register with validated fields, passwords stored as salted bcrypt hashes, and log in to receive signed JWT tokens.
 - **Actual Behavior**: Registration and login endpoints are completely missing from the backend.
 - **Planned Corrective Action (Batch B / Batch D)**: Implement password hashing utilities and provide demo/real auth endpoints.
+- **Resolution Status**: **RESOLVED** (Task COMMIT-03)
+- **Resolution Verification**: Implemented bcrypt password hashing (12 rounds) in `app/core/security.py`, Decision D5 schema validation in `app/schemas/auth.py`, user persistence in `app/repositories/user_repository.py`, and endpoints in `app/api/v1/endpoints/auth.py` (`POST /register`, `POST /login`, `GET /me`). 30 security tests pass.
 
 ---
 
