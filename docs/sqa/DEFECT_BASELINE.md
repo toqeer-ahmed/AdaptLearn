@@ -31,7 +31,7 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
 
 | Defect ID | Description | Severity | Priority | Affected Requirement(s) | Affected File(s) | Status | Planned Fix Batch |
 | :---: | :--- | :---: | :---: | :---: | :--- | :---: | :---: |
-| **DEF-AUTH-001** | Frontend preset token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-14 | `frontend/src/context/presets.js`<br>`backend/app/core/auth.py` | **OPEN** | Batch A |
+| **DEF-AUTH-001** | Frontend preset token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-14 | `frontend/src/context/presets.js`<br>`frontend/src/api/client.js`<br>`backend/app/core/auth.py` | **RESOLVED** | Batch A (COMMIT-02) |
 | **DEF-AUTH-002** | Authentication credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks. | **S1 (Critical)** | **P1 (Immediate)** | NFR-04, NFR-05 | `backend/app/core/auth.py` | **OPEN** | Batch B |
 | **DEF-AUTH-003** | Missing user registration, login, and bcrypt password hashing backend endpoints. | **S1 (Critical)** | **P1 (Immediate)** | FR-01, FR-02, NFR-03 | `backend/app/api/v1/endpoints/`<br>`backend/app/core/auth.py` | **OPEN** | Batch B / Batch D |
 | **DEF-DATA-001** | Repositories rely on volatile in-memory dicts; 100% data loss across server restart; zero ACID transactions. | **S2 (Major)** | **P1 (Immediate)** | NFR-08, NFR-09 | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | **OPEN** | Batch C |
@@ -65,6 +65,8 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
 - **Expected Behavior**: Default frontend presets must supply tokens matching the backend token format so views load live data.
 - **Actual Behavior**: Live student dashboard and instructor analytics views fail to load data on initial application start.
 - **Planned Corrective Action (Batch A)**: Align `frontend/src/context/presets.js` tokens to `token-101-student` and `token-1-instructor`.
+- **Resolution Status**: **RESOLVED** (Task COMMIT-02)
+- **Resolution Verification**: Aligned `frontend/src/context/presets.js` and `frontend/src/api/client.js` tokens to `token-<id>-<role>`. Added 18 regression unit and integration tests in `backend/tests/unit/test_auth.py` verifying student and instructor preset tokens authenticate, legacy `dev-token` format is rejected with HTTP 401, and protected endpoints respond 200 OK. 105 total backend tests passed. Frontend build and oxlint clean.
 
 ---
 

@@ -4,7 +4,7 @@
 > **Project**: AdaptLearn<br>
 > **Course**: Software Quality Assurance (SE431)<br>
 > **Standard Reference**: IEEE Std 1044 (Standard Classification for Software Anomalies)<br>
-> **Current Active Defects**: **8 active defects** *(Documented during Task COMMIT-01 Pre-Fix Baseline Audit)*
+> **Current Active Defects**: **7 active defects (1 resolved)** *(Updated post Task COMMIT-02: DEF-AUTH-001 resolved)*
 
 ---
 
@@ -30,7 +30,7 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 
 | Defect ID | Source & Finding Ref | Description | Severity | Priority | Affected File & Line | Assigned Owner | Resolution Status | CAPA Ref | Retest Evidence |
 | :---: | :---: | :--- | :---: | :---: | :--- | :---: | :---: | :---: | :--- |
-| **DEF-AUTH-001** | FINAL-03 Audit | Frontend/backend token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | S1 - Critical | P1 - Immediate | `frontend/src/context/presets.js`<br>`backend/app/core/auth.py:24` | Toqeer Ahmed | **OPEN** | CAPA-AUTH-001 | Awaiting Batch A fix |
+| **DEF-AUTH-001** | FINAL-03 Audit | Frontend/backend token format mismatch (`dev-token-...` vs `token-...`) causing live HTTP 401 errors. | S1 - Critical | P1 - Immediate | `frontend/src/context/presets.js`<br>`frontend/src/api/client.js`<br>`backend/app/core/auth.py:24` | Toqeer Ahmed | **RESOLVED** | CAPA-AUTH-001 | Verified by `backend/tests/unit/test_auth.py` (18/18 passed) |
 | **DEF-AUTH-002** | FINAL-03 Audit | Auth credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks (simulated regex). | S1 - Critical | P1 - Immediate | `backend/app/core/auth.py:27-56` | Toqeer Ahmed | **OPEN** | CAPA-AUTH-002 | Awaiting Batch B fix |
 | **DEF-AUTH-003** | FINAL-03 Audit | Missing backend user registration, login, and salted bcrypt password hashing endpoints. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18`<br>`backend/app/core/` | Toqeer / Hiba | **OPEN** | CAPA-AUTH-003 | Awaiting Batch B/D fix |
 | **DEF-DATA-001** | FINAL-03 Audit | Repositories rely on volatile in-memory dicts; 100% data loss across restart; zero ACID transactions. | S2 - Major | P1 - Immediate | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | Toqeer Ahmed | **OPEN** | CAPA-DATA-001 | Awaiting Batch C fix |
@@ -49,7 +49,7 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 - **Reported By**: Toqeer Ahmed (Lead SQA Engineer)
 - **Source**: FINAL-03 Critical Blocker Audit
 - **Assigned To**: Toqeer Ahmed
-- **Module Affected**: `frontend/src/context/presets.js`, `backend/app/core/auth.py`
+- **Module Affected**: `frontend/src/context/presets.js`, `frontend/src/api/client.js`, `backend/app/core/auth.py`
 - **Severity**: S1 - Critical
 - **Priority**: P1 - Immediate
 - **Target Baseline Commit**: `efeba33`
@@ -69,8 +69,27 @@ Live student dashboard and instructor analytics fail to load on clean startup du
 #### Associated CAPA Reference
 - `CAPA-AUTH-001` (Batch A fast-track closure)
 
+#### Corrective Action Taken
+1. **Frontend Alignment**:
+   - Updated `frontend/src/context/presets.js` to define tokens strictly adhering to `token-<id>-<role>`:
+     - `student` (ID: 101) $\rightarrow$ `token-101-student`
+     - `instructor` (ID: 1) $\rightarrow$ `token-1-instructor`
+     - `nonOwnerInstructor` (ID: 2) $\rightarrow$ `token-2-instructor`
+   - Updated fallback authorization token in `frontend/src/api/client.js` from `'dev-token-student-101'` to `'token-101-student'`.
+2. **Regression Test Suite**:
+   - Created `backend/tests/unit/test_auth.py` with 18 unit and integration test cases covering:
+     - Student preset credential authentication.
+     - Instructor and non-owner instructor preset authentication.
+     - Case insensitivity and whitespace handling.
+     - Rejection of legacy mismatch token format (`dev-token-...`) with HTTP 401.
+     - Rejection of missing/empty Authorization header with HTTP 401.
+     - Rejection of malformed tokens and unauthorized roles with HTTP 401.
+     - End-to-end authorized API requests against protected endpoints (`/api/v1/courses/{id}/progress` and `/api/v1/courses/{id}/analytics/mastery-distribution`).
+
 #### Resolution & Verification
-- **Status**: **OPEN**
+- **Status**: **RESOLVED**
+- **Verified Date**: 2026-11-21
+- **Verification Evidence**: All 18 regression tests in `backend/tests/unit/test_auth.py` passed; full backend suite of 105 tests passed in 1.10s. Frontend `vite build` completed cleanly; `oxlint` reported 0 errors and 0 warnings.
 
 ---
 
