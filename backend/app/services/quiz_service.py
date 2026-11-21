@@ -380,9 +380,23 @@ class QuizService:
 
         graded_answers: list[GradedAnswerResponse] = []
         earned_points: float = 0.0
-        topic_stats: dict[int, dict[str, int]] = {}
 
+        # Initialize topic stats for all topics present on the quiz
+        topic_stats: dict[int, dict[str, int]] = {}
+        for q in quiz.questions:
+            if q.topic_id not in topic_stats:
+                topic_stats[q.topic_id] = {"correct": 0, "total": 0}
+            topic_stats[q.topic_id]["total"] += 1
+
+        seen_question_ids: set[int] = set()
         for item in payload.answers:
+            if item.question_id in seen_question_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Duplicate submission for question ID {item.question_id}.",
+                )
+            seen_question_ids.add(item.question_id)
+
             if item.question_id not in quiz_question_map:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -399,12 +413,6 @@ class QuizService:
             is_correct = item.selected_option_index == q.correct_option_index
             if is_correct:
                 earned_points += 1.0
-
-            # Accumulate per-topic counters
-            if q.topic_id not in topic_stats:
-                topic_stats[q.topic_id] = {"correct": 0, "total": 0}
-            topic_stats[q.topic_id]["total"] += 1
-            if is_correct:
                 topic_stats[q.topic_id]["correct"] += 1
 
             graded_answers.append(
