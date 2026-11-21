@@ -4,7 +4,7 @@
 > **Project**: AdaptLearn<br>
 > **Course**: Software Quality Assurance (SE431)<br>
 > **Standard Reference**: IEEE Std 1044 (Standard Classification for Software Anomalies)<br>
-> **Current Active Defects**: **4 active defects (4 resolved)** *(Updated post Task COMMIT-04: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003, DEF-DATA-001 resolved)*
+> **Current Active Defects**: **3 active defects (5 resolved)** *(Updated post Task COMMIT-05: DEF-AUTH-001, DEF-AUTH-002, DEF-AUTH-003, DEF-DATA-001, DEF-ARCH-001 resolved)*
 
 ---
 
@@ -35,7 +35,7 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 | **DEF-AUTH-003** | FINAL-03 Audit | Missing backend user registration, login, and salted bcrypt password hashing endpoints. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/core/security.py` | Toqeer / Hiba | **RESOLVED** | CAPA-AUTH-003 | Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed) |
 | **DEF-DATA-001** | FINAL-03 Audit | Repositories rely on volatile in-memory dicts; 100% data loss across restart; zero ACID transactions. | S2 - Major | P1 - Immediate | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | Toqeer Ahmed | **RESOLVED** | CAPA-DATA-001 | Verified by `backend/tests/unit/test_persistence.py` (9/9 passed) |
 | **DEF-MOD-001** | FINAL-03 Audit | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main` branch. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18-21` | Hiba / Mustajaab | **OPEN** | CAPA-MOD-001 | Awaiting Batch D merge |
-| **DEF-ARCH-001** | FINAL-03 Audit | SE423 rubric requirement for Creational Pattern (Factory Method) unmet (only dictionary lookup exists). | S3 - Moderate | P2 - High | `backend/app/engine/recommendation_strategy.py:230-254` | Toqeer Ahmed | **OPEN** | CAPA-ARCH-001 | Awaiting Batch B fix |
+| **DEF-ARCH-001** | FINAL-03 Audit | SE423 rubric requirement for Creational Pattern (Factory Method) unmet (only dictionary lookup exists). | S3 - Moderate | P2 - High | `backend/app/engine/recommendation_strategy.py`<br>`backend/app/services/adaptive_service.py` | Toqeer Ahmed | **RESOLVED** | CAPA-ARCH-001 | Verified by `backend/tests/unit/test_recommendation_strategy.py` (18/18 passed) |
 | **DEF-FE-001** | FINAL-03 Audit | Frontend Assessment and Authentication views operate in simulated/preview mode with blocked backend endpoints. | S2 - Major | P2 - High | `frontend/src/components/AssessmentView.jsx`<br>`frontend/src/components/AuthView.jsx` | Toqeer Ahmed | **OPEN** | CAPA-FE-001 | Awaiting Batch A/D fix |
 | **DEF-DOC-001** | FINAL-03 Audit | SQA documentation test count discrepancy: earlier documents cite 82 tests while execution reports cite 87 tests. | S3 - Moderate | P2 - High | `docs/sqa/requirements_traceability_matrix.md`<br>`docs/sqa/risk_register.md`<br>`docs/sqa/formal_inspection_report.md` | Toqeer Ahmed | **OPEN** | CAPA-DOC-001 | Awaiting Batch A fix |
 | *[DEF-FND-001]* | FND-001 | *[Pending live Fagan inspection meeting with external faculty evaluator]* | S1/S2/S3/S4 | P1/P2/P3/P4 | `backend/app/engine/...` | Assignee | *Pending* | CAPA-001 | Awaiting inspection |
@@ -283,8 +283,21 @@ Only a flat dictionary lookup helper `get_recommendation_strategy()` exists.
 #### Associated CAPA Reference
 - `CAPA-ARCH-001` (Batch B fast-track closure)
 
+#### Corrective Action Taken
+1. **Abstract Creator Abstraction**:
+   - Created `RecommendationStrategyCreator(ABC)` in `backend/app/engine/recommendation_strategy.py` declaring the abstract factory method `create_strategy() -> RecommendationStrategy` and template method `recommend()`.
+2. **Concrete Creator**:
+   - Created `RuleBasedStrategyCreator(RecommendationStrategyCreator)` in `backend/app/engine/recommendation_strategy.py` overriding `create_strategy()` to instantiate `RuleBasedRecommendationStrategy`.
+3. **Creator Registry & Dependency Inversion**:
+   - Implemented `STRATEGY_CREATORS` registry and `get_strategy_creator()` resolver.
+   - Refactored `AdaptiveService` in `backend/app/services/adaptive_service.py` to depend on `RecommendationStrategyCreator` abstraction.
+4. **Unit & Architecture Testing**:
+   - Authored unit test suite in `backend/tests/unit/test_recommendation_strategy.py` (`TestFactoryMethodPattern`) covering instantiation guards, polymorphic creators, creator delegation, and registry resolution.
+
 #### Resolution & Verification
-- **Status**: **OPEN**
+- **Status**: **RESOLVED**
+- **Verified Date**: 2026-11-21
+- **Verification Evidence**: Verified by 18 unit tests in `backend/tests/unit/test_recommendation_strategy.py` (all passed in 0.06s) and 150 total backend tests. AST layer scanner confirmed zero forbidden imports in `app/engine/`.
 
 ---
 

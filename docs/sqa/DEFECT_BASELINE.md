@@ -36,7 +36,7 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
 | **DEF-AUTH-003** | Missing user registration, login, and bcrypt password hashing backend endpoints. | **S1 (Critical)** | **P1 (Immediate)** | FR-01, FR-02, NFR-03 | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/core/security.py` | **RESOLVED** | Batch B (COMMIT-03) |
 | **DEF-DATA-001** | Repositories rely on volatile in-memory dicts; 100% data loss across server restart; zero ACID transactions. | **S2 (Major)** | **P1 (Immediate)** | NFR-08, NFR-09 | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | **RESOLVED** | Batch C (COMMIT-04) |
 | **DEF-MOD-001** | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main`. | **S1 (Critical)** | **P1 (Immediate)** | FR-01..FR-14 | `backend/app/api/v1/api.py` | **OPEN** | Batch D |
-| **DEF-ARCH-001** | SE423 rubric requirement for Creational Design Pattern (Factory Method) is unmet (only dictionary lookup exists). | **S3 (Moderate)** | **P2 (High)** | SE423 Rubric | `backend/app/engine/recommendation_strategy.py` | **OPEN** | Batch B |
+| **DEF-ARCH-001** | SE423 rubric requirement for Creational Design Pattern (Factory Method) is unmet (only dictionary lookup exists). | **S3 (Moderate)** | **P2 (High)** | SE423 Rubric | `backend/app/engine/recommendation_strategy.py` | **RESOLVED** | Batch B (COMMIT-05) |
 | **DEF-FE-001** | Frontend Assessment and Authentication views operate in simulated/preview mode with blocked backend endpoints. | **S2 (Major)** | **P2 (High)** | FR-01, FR-02, FR-08..FR-14 | `frontend/src/components/AssessmentView.jsx`<br>`frontend/src/components/AuthView.jsx` | **OPEN** | Batch A / Batch D |
 | **DEF-DOC-001** | SQA documentation test count discrepancy: earlier documents cite 82 tests while execution reports cite 87 tests. | **S3 (Moderate)** | **P2 (High)** | IEEE Std 1012, SQA Rubric | `docs/sqa/requirements_traceability_matrix.md`<br>`docs/sqa/risk_register.md`<br>`docs/sqa/formal_inspection_report.md` | **OPEN** | Batch A |
 
@@ -177,7 +177,9 @@ In strict adherence to `AGENTS.md` (Zero Fabrication Policy), this baseline reco
   - CR-01 proposed Factory Method, but remains in `Proposed` status.
 - **Expected Behavior**: A formal GoF Creational Design Pattern implemented in code to satisfy the rubric.
 - **Actual Behavior**: Creational pattern requirement is unmet.
-- **Planned Corrective Action (Batch B)**: Implement formal `RecommendationStrategyFactory` and `RecommendationStrategyCreator` classes.
+- **Planned Corrective Action (Batch B)**: Implement formal GoF Factory Method pattern with `RecommendationStrategyCreator` and `RuleBasedStrategyCreator`.
+- **Resolution Status**: **RESOLVED** (Task COMMIT-05)
+- **Resolution Verification**: Implemented abstract creator `RecommendationStrategyCreator` with factory method `create_strategy()`, concrete creator `RuleBasedStrategyCreator`, and updated `AdaptiveService` to depend on the creator abstraction. Verified with 18 passing tests in `backend/tests/unit/test_recommendation_strategy.py` and 150 total backend tests.
 
 ---
 

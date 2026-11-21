@@ -19,7 +19,7 @@
 | **D5** | User Input & Password String Bounds | M1 (Hiba), Core | **Adopted / Implemented** | Prevents bcrypt 72-byte truncation and DoS vulnerabilities; verified in Task COMMIT-03. |
 | **D6** | SQLAlchemy 2.0 ORM & SQLite / PostgreSQL Architecture | All Modules, CI | **Adopted / Implemented** | Durable persistence across restarts (DEF-DATA-001); verified via `test_persistence.py` in Task COMMIT-04. |
 | **D7** | Merge Commits Only (No Squash Merging) | All Modules, Git | **Proposed** | Preserves visible TDD red-green-refactor commit trail per guideline. |
-| **CR-01** | Factory Method Pattern & Second Strategy | M3, M4, M2, M5 | **Proposed (Needs Confirmation)** | Satisfies SE423 rubric requiring $\ge 3$ patterns including $\ge 1$ creational. |
+| **CR-01** | Factory Method Pattern (Recommendation Strategy) | M3, M4 | **Adopted / Implemented** | Satisfies SE423 creational pattern rubric; implemented via `RecommendationStrategyCreator` and `RuleBasedStrategyCreator` in Task COMMIT-05. |
 | **CR-02** | Background Concurrency Job for Reports | M5 (Toqeer), Core | **Proposed (Needs Confirmation)** | Satisfies SE423 concurrency rubric using `ThreadPoolExecutor`. |
 
 ---
@@ -131,18 +131,19 @@
 
 ## Change Requests (CR)
 
-### CR-01: Introduce Factory Method Pattern & Second Strategy
-- **Status**: **Proposed (Requires Instructor / Team Confirmation)**
-- **Origin**: Reversal of M1 §7.3 design choice.
-- **Rationale**: M1 §7.3 initially rejected Factory and Observer patterns. However, the official SE423 Milestone 2 rubric explicitly mandates:
-  > *"At least 3 design patterns: one creational, one structural or behavioural, and one of choice."*
-  To satisfy this mandatory requirement without breaking Open/Closed principle:
-  1. We introduce the **Factory Method** (`StrategyCreator` with `RuleBasedCreator` and `StaleFirstCreator`) to instantiate recommendation strategies based on `Course.strategy_name`.
-  2. We introduce the **Observer** pattern (`EventBus` publishing `AttemptSubmitted` after database commit) to notify M5 that cached reports are stale without coupling M2 to M5.
-- **Impact Analysis**:
-  - *Code*: Adds `engine/strategy_factory.py` and `app/events.py`.
-  - *Database*: Adds `strategy_name` column to `courses` table (default: `'rule_based'`).
-  - *Tests*: Contract tests verify that both creators instantiate valid strategies complying with `RecommendationStrategy`.
+### CR-01: Factory Method Creational Pattern for Recommendation Strategies
+- **Status**: **Adopted / Implemented** (Verified in Task COMMIT-05)
+- **Origin**: SE423 Milestone 2 Rubric Mandate ($\ge 3$ design patterns including $\ge 1$ creational pattern).
+- **Rationale**: M1 §7.3 initially omitted formal creational patterns. To satisfy the SE423 rubric requirement for a genuine creational design pattern without overengineering:
+  1. We introduce the **Factory Method** pattern:
+     - Abstract Creator: `RecommendationStrategyCreator` declaring abstract factory method `create_strategy() -> RecommendationStrategy` and template method `recommend()`.
+     - Concrete Creator: `RuleBasedStrategyCreator` overriding `create_strategy()` to instantiate and return `RuleBasedRecommendationStrategy`.
+     - Creator Registry: `STRATEGY_CREATORS` mapping identifiers to concrete creator types, accessed via `get_strategy_creator()`.
+  2. Client Abstraction: `AdaptiveService` depends on `RecommendationStrategyCreator` (injected or resolved via `get_strategy_creator()`), delegating object creation through the factory method.
+- **Impact**: Fully satisfies the SE423 Creational Design Pattern requirement (resolves DEF-ARCH-001). Preserves pure engine domain isolation (NFR-05). Backward compatible with existing callers. Verified by 18 unit tests in `backend/tests/unit/test_recommendation_strategy.py`.
+- **Alternatives Considered**:
+  - *Flat dictionary lookup function*: Rejected because it does not satisfy the GoF Factory Method pattern required by the rubric (DEF-ARCH-001).
+  - *Abstract Factory*: Rejected as overengineering since recommendation strategies do not produce families of related products.
 
 ---
 
