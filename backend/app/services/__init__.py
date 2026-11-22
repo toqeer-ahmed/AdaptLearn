@@ -19,6 +19,10 @@ from app.services.course_service import (
     CourseService,
     get_course_service,
 )
+from app.services.learning_path_service import (
+    LearningPathService,
+    get_learning_path_service,
+)
 from app.services.progress_service import (
     ProgressService,
     get_progress_service,
@@ -29,10 +33,12 @@ __all__ = [
     "AnalyticsService",
     "AuthService",
     "CourseService",
+    "LearningPathService",
     "ProgressService",
     "get_adaptive_service",
     "get_analytics_service",
     "get_auth_service",
     "get_course_service",
+    "get_learning_path_service",
     "get_progress_service",
 ]

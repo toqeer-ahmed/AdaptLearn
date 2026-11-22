@@ -16,6 +16,10 @@ from app.schemas.course import (
     TopicUpdate,
     UserEnrollmentsResponse,
 )
+from app.schemas.learning_path import (
+    LearningPathResponse,
+    TopicPathItem,
+)
 
 __all__ = [
     "CourseCreate",
@@ -24,8 +28,10 @@ __all__ = [
     "CourseUpdate",
     "EnrollmentRequest",
     "EnrollmentResponse",
+    "LearningPathResponse",
     "TopicCreate",
     "TopicListResponse",
+    "TopicPathItem",
     "TopicPrerequisiteCreate",
     "TopicPrerequisiteResponse",
     "TopicReorderItem",

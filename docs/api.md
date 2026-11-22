@@ -278,37 +278,71 @@ class Recommendation:
 
 ## 5. Module 4: Personalized Learning Paths (Hiba)
 
+### 5.1 Personalized Course Learning Path
 - `GET /api/v1/courses/{id}/learning-path`
-  - **Access**: Enrolled Student
+  - **Access**: 
+    - **Enrolled Student**: Can only view their own path (NFR-06).
+    - **Course Owner (Instructor)**: Can view their own path or supply `?student_id=<id>` to inspect a specific student's path (Decision 5).
+  - **Query Parameters**:
+    - `student_id` (optional, integer): Target student ID (instructor only override).
+  - **Status Codes**:
+    - `200 OK`: Learning path successfully generated.
+    - `401 Unauthorized`: Missing or invalid Bearer JWT token.
+    - `403 Forbidden`: Student not enrolled, student attempting to view another student's path, or instructor not course owner.
+    - `404 Not Found`: Course ID does not exist.
   - **Responses**: `200 OK`
     ```json
     {
       "course_id": 1,
+      "student_id": 101,
+      "total_topics": 3,
+      "unlocked_count": 2,
+      "completed_count": 1,
+      "completion_percentage": 33.33,
       "path": [
         {
           "topic_id": 1,
           "title": "Syntax & Variables",
+          "description": "Foundational Python syntax",
+          "order_index": 0,
           "status": "Proficient",
-          "is_unlocked": true
+          "score": 0.90,
+          "is_unlocked": true,
+          "is_recommended": false,
+          "locked_reason": null,
+          "prerequisite_topic_ids": [],
+          "rationale": null
         },
         {
           "topic_id": 2,
           "title": "Conditionals",
+          "description": "Branching and boolean logic",
+          "order_index": 1,
           "status": "Weak",
+          "score": 0.35,
           "is_unlocked": true,
-          "is_recommended": true
+          "is_recommended": true,
+          "locked_reason": null,
+          "prerequisite_topic_ids": [1],
+          "rationale": "Topic is Weak (score: 0.35) and requires reinforcement."
         },
         {
           "topic_id": 3,
           "title": "Loops",
+          "description": "For and while loops",
+          "order_index": 2,
           "status": "Not Assessed",
+          "score": 0.0,
           "is_unlocked": false,
-          "locked_reason": "Prerequisite 'Conditionals' not yet Proficient"
+          "is_recommended": false,
+          "locked_reason": "Prerequisite 'Conditionals' not yet Proficient (current level: Weak)",
+          "prerequisite_topic_ids": [2],
+          "rationale": null
         }
       ]
     }
     ```
-  - *Status*: **Requires alignment with Hiba on prerequisite evaluation logic.**
+  - *Status*: **Implemented & Fully Verified (FR-18, FR-19, FR-20, FR-25).**
 
 ---
 
