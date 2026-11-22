@@ -18,6 +18,8 @@ from sqlalchemy.orm import sessionmaker
 from app.db.session import init_db
 from app.engine.mastery_calculator import MasteryParameters, ResponseRecord
 from app.engine.recommendation_strategy import TopicRecommendationInput
+from app.models.adaptive import CourseTopicModel
+from app.models.course import CourseModel, TopicModel, TopicPrerequisiteModel
 from app.repositories.adaptive_repository import AdaptiveRepository
 from app.repositories.progress_repository import AttemptRecord, ProgressRepository
 from app.repositories.user_repository import UserRepository
@@ -283,3 +285,158 @@ class TestUserRepositoryPersistence:
                 password_hash="somehash",
                 role="student",
             )
+
+
+class TestAdaptiveRepositoryGap03DualSource:
+    """Validate GAP-03: Dual-Source resolution between canonical M1 topics and legacy M3 course_topics."""
+
+    def test_canonical_topic_precedence(self, temp_db):
+        """When canonical M1 TopicModel rows exist, they take precedence over legacy CourseTopicModel."""
+        session_factory, _ = temp_db
+        course_id = 500
+
+        with session_factory() as session:
+            # 1. Insert M1 Course and canonical TopicModel records
+            course = CourseModel(id=course_id, title="Canonical Course", course_code="CAN500", instructor_id=1)
+            session.add(course)
+            session.flush()
+
+            t1 = TopicModel(id=1, course_id=course_id, title="Canonical Intro", order_index=0, is_active=True)
+            t2 = TopicModel(id=2, course_id=course_id, title="Canonical Advanced", order_index=1, is_active=True)
+            session.add_all([t1, t2])
+
+            # 2. Also insert legacy CourseTopicModel records for the same course_id
+            legacy = CourseTopicModel(
+                course_id=course_id,
+                topic_id=99,
+                name="Ghost Legacy Topic",
+                order_index=0,
+                prerequisites_json="[]",
+            )
+            session.add(legacy)
+            session.commit()
+
+        repo = AdaptiveRepository(session_factory=session_factory)
+        topics = repo.get_course_topics(course_id=course_id)
+
+        assert len(topics) == 2
+        assert [t.topic_id for t in topics] == [1, 2]
+        assert [t.name for t in topics] == ["Canonical Intro", "Canonical Advanced"]
+
+    def test_legacy_fallback_when_no_canonical_records_exist(self, temp_db):
+        """When a course genuinely has no M1 TopicModel records, fall back to CourseTopicModel."""
+        session_factory, _ = temp_db
+        course_id = 600
+
+        with session_factory() as session:
+            legacy = CourseTopicModel(
+                course_id=course_id,
+                topic_id=10,
+                name="Legacy Fallback Topic",
+                order_index=0,
+                prerequisites_json="[]",
+            )
+            session.add(legacy)
+            session.commit()
+
+        repo = AdaptiveRepository(session_factory=session_factory)
+        topics = repo.get_course_topics(course_id=course_id)
+
+        assert len(topics) == 1
+        assert topics[0].topic_id == 10
+        assert topics[0].name == "Legacy Fallback Topic"
+
+    def test_inactive_canonical_topics_never_fallback_to_legacy(self, temp_db):
+        """If canonical M1 topics exist but are ALL inactive, return [] and {} — NEVER fall back to legacy."""
+        session_factory, _ = temp_db
+        course_id = 700
+
+        with session_factory() as session:
+            course = CourseModel(id=course_id, title="Inactive Course", course_code="INACT700", instructor_id=1)
+            session.add(course)
+            session.flush()
+
+            # Canonical topics exist, but are inactive
+            t1 = TopicModel(id=1, course_id=course_id, title="Deactivated Topic", order_index=0, is_active=False)
+            session.add(t1)
+
+            # Legacy topic exists in course_topics table
+            legacy = CourseTopicModel(
+                course_id=course_id,
+                topic_id=99,
+                name="Legacy Should Not Be Returned",
+                order_index=0,
+                prerequisites_json="[]",
+            )
+            session.add(legacy)
+            session.commit()
+
+        repo = AdaptiveRepository(session_factory=session_factory)
+        topics = repo.get_course_topics(course_id=course_id)
+        assert topics == [], "Expected empty list because canonical records exist, but legacy fallback was wrongly invoked!"
+
+        prereqs = repo.get_course_prerequisites(course_id=course_id)
+        assert prereqs == {}, "Expected empty dict because canonical records exist, but legacy fallback was wrongly invoked!"
+
+    def test_canonical_prerequisite_relationships(self, temp_db):
+        """Prerequisites configured in TopicPrerequisiteModel are correctly retrieved and attached."""
+        session_factory, _ = temp_db
+        course_id = 800
+
+        with session_factory() as session:
+            course = CourseModel(id=course_id, title="Prereq Course", course_code="PRQ800", instructor_id=1)
+            session.add(course)
+            session.flush()
+
+            t1 = TopicModel(id=1, course_id=course_id, title="Topic 1", order_index=0, is_active=True)
+            t2 = TopicModel(id=2, course_id=course_id, title="Topic 2", order_index=1, is_active=True)
+            t3 = TopicModel(id=3, course_id=course_id, title="Topic 3", order_index=2, is_active=True)
+            session.add_all([t1, t2, t3])
+            session.flush()
+
+            # Topic 2 requires Topic 1; Topic 3 requires Topic 1 and Topic 2
+            p2_1 = TopicPrerequisiteModel(topic_id=2, prerequisite_topic_id=1)
+            p3_1 = TopicPrerequisiteModel(topic_id=3, prerequisite_topic_id=1)
+            p3_2 = TopicPrerequisiteModel(topic_id=3, prerequisite_topic_id=2)
+            session.add_all([p2_1, p3_1, p3_2])
+            session.commit()
+
+        repo = AdaptiveRepository(session_factory=session_factory)
+        topics = repo.get_course_topics(course_id=course_id)
+
+        assert len(topics) == 3
+        assert topics[0].prerequisites == ()
+        assert topics[1].prerequisites == (1,)
+        assert topics[2].prerequisites == (1, 2)
+
+        prereqs = repo.get_course_prerequisites(course_id=course_id)
+        assert prereqs[1] == set()
+        assert prereqs[2] == {1}
+        assert prereqs[3] == {1, 2}
+
+    def test_no_duplicate_or_mixed_source_results(self, temp_db):
+        """Canonical and legacy records for the same course must never be mixed or duplicated."""
+        session_factory, _ = temp_db
+        course_id = 900
+
+        with session_factory() as session:
+            course = CourseModel(id=course_id, title="No Mix Course", course_code="NMX900", instructor_id=1)
+            session.add(course)
+            session.flush()
+
+            t1 = TopicModel(id=1, course_id=course_id, title="Canonical Exclusive", order_index=0, is_active=True)
+            session.add(t1)
+
+            # Insert legacy records with same and different topic_ids
+            l1 = CourseTopicModel(course_id=course_id, topic_id=1, name="Legacy Topic 1", order_index=0)
+            l2 = CourseTopicModel(course_id=course_id, topic_id=2, name="Legacy Topic 2", order_index=1)
+            session.add_all([l1, l2])
+            session.commit()
+
+        repo = AdaptiveRepository(session_factory=session_factory)
+        topics = repo.get_course_topics(course_id=course_id)
+
+        assert len(topics) == 1
+        assert topics[0].topic_id == 1
+        assert topics[0].name == "Canonical Exclusive"
+        assert not any(t.name.startswith("Legacy") for t in topics)

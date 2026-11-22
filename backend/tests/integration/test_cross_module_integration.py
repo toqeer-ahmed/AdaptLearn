@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from app.engine.recommendation_strategy import TopicRecommendationInput
 from app.main import app
 from app.repositories.adaptive_repository import get_adaptive_repository
+from app.repositories.course_repository import get_course_repository
 from app.repositories.progress_repository import (
     AttemptRecord,
     get_progress_repository,
@@ -30,11 +31,14 @@ def reset_repositories():
     """Ensure in-memory repository stores are cleanly reset before and after each test."""
     p_repo = get_progress_repository()
     a_repo = get_adaptive_repository()
+    c_repo = get_course_repository()
     p_repo.clear()
     a_repo.clear()
+    c_repo.clear()
     yield
     p_repo.clear()
     a_repo.clear()
+    c_repo.clear()
 
 
 @pytest.fixture
@@ -261,3 +265,95 @@ class TestCrossModuleAuthorizationAndSecurity:
         res = client.get(f"/api/v1/courses/{course_id}/progress?student_id={student_b}", headers=headers_a)
         assert res.status_code == 403
         assert "another student" in res.json()["error"]["message"].lower()
+
+
+class TestCanonicalCourseTopicCrossModuleIntegration:
+    """Validate GAP-03: Courses and topics created via M1 are fully visible to M3 and M5."""
+
+    def test_m1_created_course_and_topics_visible_to_m3_and_m5(self, client):
+        """End-to-end integration:
+        1. Create course and topics via M1 CourseRepository.
+        2. Verify M3 recommendations returns canonical topics with prerequisite order.
+        3. Verify M5 student progress dashboard displays canonical topics and calculates completion.
+        4. Verify M5 instructor analytics (mastery distribution & student roster) displays canonical topics.
+        """
+        c_repo = get_course_repository()
+        p_repo = get_progress_repository()
+
+        instructor_id = 1
+        student_id = 42
+        instructor_headers = {"Authorization": f"Bearer token-{instructor_id}-instructor"}
+        student_headers = {"Authorization": f"Bearer token-{student_id}-student"}
+
+        # Step 1: Create M1 Course
+        course = c_repo.create_course(
+            title="Data Structures & Algorithms",
+            course_code="CS201",
+            instructor_id=instructor_id,
+            description="Authoritative M1 curriculum course",
+        )
+        course_id = course.id
+
+        # Step 2: Create M1 Topics with sequential ordering
+        top_arrays = c_repo.create_topic(course_id=course_id, title="Arrays & Lists", order_index=0)
+        top_stacks = c_repo.create_topic(course_id=course_id, title="Stacks & Queues", order_index=1)
+        top_trees = c_repo.create_topic(course_id=course_id, title="Binary Trees", order_index=2)
+
+        # Step 3: Add Prerequisites: Stacks requires Arrays; Trees requires Stacks
+        c_repo.add_prerequisite(topic_id=top_stacks.id, prerequisite_topic_id=top_arrays.id)
+        c_repo.add_prerequisite(topic_id=top_trees.id, prerequisite_topic_id=top_stacks.id)
+
+        # Step 4: Enroll student in course
+        p_repo.enroll_student(student_id=student_id, course_id=course_id)
+        p_repo.set_course_owner(course_id=course_id, instructor_id=instructor_id)
+
+        # Step 5: Verify M3 Recommendations (GET /api/v1/courses/{id}/recommendations)
+        rec_res = client.get(f"/api/v1/courses/{course_id}/recommendations")
+        assert rec_res.status_code == 200
+        rec_data = rec_res.json()
+        assert rec_data["course_id"] == course_id
+        assert rec_data["total_recommended"] >= 1
+        rec_names = [r["topic_name"] for r in rec_data["recommendations"]]
+        # "Arrays & Lists" has no prerequisites and is Not Assessed -> should be recommended
+        assert "Arrays & Lists" in rec_names
+        # First recommended topic should be "Arrays & Lists" (foundational starting point)
+        assert rec_names[0] == "Arrays & Lists"
+
+        # Step 6: Verify M5 Student Progress Dashboard (GET /api/v1/courses/{id}/progress)
+        prog_res = client.get(f"/api/v1/courses/{course_id}/progress", headers=student_headers)
+        assert prog_res.status_code == 200
+        prog_data = prog_res.json()
+        assert prog_data["course_id"] == course_id
+        assert prog_data["completion_percentage"] == 0.0
+        assert len(prog_data["topic_breakdown"]) == 3
+        breakdown_names = [t["topic_name"] for t in prog_data["topic_breakdown"]]
+        assert breakdown_names == ["Arrays & Lists", "Stacks & Queues", "Binary Trees"]
+
+        # Step 7: Verify M5 Instructor Analytics - Mastery Distribution
+        dist_res = client.get(
+            f"/api/v1/courses/{course_id}/analytics/mastery-distribution",
+            headers=instructor_headers,
+        )
+        assert dist_res.status_code == 200
+        dist_data = dist_res.json()
+        assert dist_data["total_enrolled"] == 1
+        assert len(dist_data["topics"]) == 3
+        dist_names = [t["topic_name"] for t in dist_data["topics"]]
+        assert dist_names == ["Arrays & Lists", "Stacks & Queues", "Binary Trees"]
+        for topic_dist in dist_data["topics"]:
+            assert topic_dist["not_assessed_count"] == 1
+            assert topic_dist["total_students"] == 1
+
+        # Step 8: Verify M5 Instructor Analytics - Student Roster Matrix
+        roster_res = client.get(
+            f"/api/v1/courses/{course_id}/analytics/student-roster",
+            headers=instructor_headers,
+        )
+        assert roster_res.status_code == 200
+        roster_data = roster_res.json()
+        assert len(roster_data["students"]) == 1
+        student_entry = roster_data["students"][0]
+        assert student_entry["student_id"] == student_id
+        assert len(student_entry["topic_masteries"]) == 3
+        roster_topic_names = [tm["topic_name"] for tm in student_entry["topic_masteries"]]
+        assert roster_topic_names == ["Arrays & Lists", "Stacks & Queues", "Binary Trees"]

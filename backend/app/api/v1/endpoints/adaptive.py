@@ -90,4 +90,10 @@ def recalculate_attempt_mastery(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Path course_id ({id}) does not match body course_id ({request.course_id})",
         )
-    return service.recalculate_attempt_mastery(request)
+    try:
+        return service.recalculate_attempt_mastery(request)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e

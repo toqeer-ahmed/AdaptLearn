@@ -7,7 +7,7 @@ Requirements Traceability:
 - FR-20: Course adaptive settings view and partial update schemas.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AdaptiveSettingsResponse(BaseModel):
@@ -53,8 +53,21 @@ class AttemptResponseItem(BaseModel):
     """An individual question response in a submitted attempt."""
     question_id: int
     topic_id: int
-    difficulty: str
+    difficulty: str = Field(..., description="Difficulty level ('Easy', 'Medium', 'Hard')")
     is_correct: bool
+
+    @field_validator("difficulty")
+    @classmethod
+    def validate_difficulty(cls, v: str) -> str:
+        """Validate and normalize difficulty to Title Case ('Easy', 'Medium', 'Hard')."""
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("Difficulty must be a non-empty string.")
+        normalized = v.strip().capitalize()
+        if normalized not in {"Easy", "Medium", "Hard"}:
+            raise ValueError(
+                f"Invalid difficulty: '{v}'. Must be one of ['Easy', 'Medium', 'Hard']."
+            )
+        return normalized
 
 
 class AttemptMasteryRecalculateRequest(BaseModel):

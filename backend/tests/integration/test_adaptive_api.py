@@ -170,3 +170,47 @@ class TestRecalculateMasteryEndpoint:
         assert pytest.approx(topic_res["score"], abs=1e-3) == 0.375
         assert topic_res["level"] == "Weak"
         assert topic_res["response_count"] == 4
+
+    def test_recalculate_mastery_case_insensitive_and_whitespace_accepted(self, client):
+        """POST /courses/{id}/recalculate-mastery accepts case-insensitive and whitespace-padded difficulty."""
+        payload = {
+            "student_id": 42,
+            "course_id": 300,
+            "responses": [
+                {"question_id": 1, "topic_id": 10, "difficulty": "  easy  ", "is_correct": True},
+                {"question_id": 2, "topic_id": 10, "difficulty": "mEdIuM", "is_correct": True},
+                {"question_id": 3, "topic_id": 10, "difficulty": "HARD", "is_correct": False},
+                {"question_id": 4, "topic_id": 10, "difficulty": "medium", "is_correct": False},
+            ],
+        }
+        response = client.post("/api/v1/courses/300/recalculate-mastery", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["updated_topics"]) == 1
+        assert pytest.approx(data["updated_topics"][0]["score"], abs=1e-3) == 0.375
+
+    def test_recalculate_mastery_invalid_difficulty_returns_422_no_partial_records(
+        self, client, reset_repository
+    ):
+        """GAP-02: Invalid difficulty returns HTTP 422 and does NOT create partial database records."""
+        payload = {
+            "student_id": 42,
+            "course_id": 300,
+            "responses": [
+                {"question_id": 1, "topic_id": 10, "difficulty": "Easy", "is_correct": True},
+                {"question_id": 2, "topic_id": 10, "difficulty": "Impossible", "is_correct": False},
+            ],
+        }
+        response = client.post("/api/v1/courses/300/recalculate-mastery", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error"]["code"] == 422
+        assert any("difficulty" in str(err.get("loc", [])) for err in data["error"]["details"])
+
+        # Crucial check: verify that NO partial records were saved in the repository
+        stored_responses = reset_repository.get_student_topic_responses(
+            student_id=42, topic_id=10
+        )
+        assert len(stored_responses) == 0, (
+            f"Expected 0 stored responses due to validation failure, but found {len(stored_responses)}"
+        )

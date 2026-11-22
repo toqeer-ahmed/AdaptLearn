@@ -158,16 +158,29 @@ class AdaptiveService:
         course_params = self.repository.get_course_settings(request.course_id)
         calculator = MasteryCalculator.from_parameters(course_params)
 
-        # Append new responses to repository history
+        # Pre-validate and construct all records before persisting (ensures atomic update / defense-in-depth)
+        records_to_append: list[tuple[int, ResponseRecord]] = []
         for item in request.responses:
+            raw_diff = item.difficulty
+            if not isinstance(raw_diff, str) or not raw_diff.strip():
+                raise ValueError("Difficulty must be a non-empty string.")
+            normalized_diff = raw_diff.strip().capitalize()
+            if normalized_diff not in {"Easy", "Medium", "Hard"}:
+                raise ValueError(
+                    f"Invalid difficulty: '{raw_diff}'. Must be one of ['Easy', 'Medium', 'Hard']."
+                )
             record = ResponseRecord(
                 is_correct=item.is_correct,
-                difficulty=item.difficulty,
+                difficulty=normalized_diff,
                 topic_id=item.topic_id,
             )
+            records_to_append.append((item.topic_id, record))
+
+        # Append new responses to repository history only after all items are validated
+        for topic_id, record in records_to_append:
             self.repository.append_student_response(
                 student_id=request.student_id,
-                topic_id=item.topic_id,
+                topic_id=topic_id,
                 record=record,
             )
 

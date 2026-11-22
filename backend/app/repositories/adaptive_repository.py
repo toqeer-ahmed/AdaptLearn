@@ -15,6 +15,7 @@ from app.db.session import SessionLocal, init_db
 from app.engine.mastery_calculator import MasteryParameters, ResponseRecord
 from app.engine.recommendation_strategy import TopicRecommendationInput
 from app.models.adaptive import CourseSettingsModel, CourseTopicModel, StudentTopicResponseModel
+from app.models.course import TopicModel, TopicPrerequisiteModel
 
 
 class AdaptiveRepository:
@@ -95,16 +96,70 @@ class AdaptiveRepository:
             session.commit()
 
     def get_course_topics(self, course_id: int) -> list[TopicRecommendationInput]:
-        """Retrieve all topic candidates for a course."""
+        """Retrieve all topic candidates for a course.
+
+        Dual-Source Resolution (GAP-03):
+        1. Authoritative: Queries canonical M1 TopicModel and TopicPrerequisiteModel.
+        2. Fallback: Queries legacy CourseTopicModel ONLY when no canonical M1 topic records
+           exist for this course.
+        Note: If canonical topic records exist but are all inactive, returns [] without falling back.
+        """
         with self.session_factory() as session:
-            rows = (
+            # Check if ANY canonical M1 topic records exist for this course
+            canonical_exists = (
+                session.query(TopicModel.id)
+                .filter_by(course_id=course_id)
+                .first()
+                is not None
+            )
+
+            if canonical_exists:
+                # Retrieve active canonical topics ordered by order_index, then id
+                active_topics = (
+                    session.query(TopicModel)
+                    .filter_by(course_id=course_id, is_active=True)
+                    .order_by(TopicModel.order_index.asc(), TopicModel.id.asc())
+                    .all()
+                )
+                if not active_topics:
+                    return []
+
+                active_topic_ids = [t.id for t in active_topics]
+                active_id_set = set(active_topic_ids)
+
+                # Query prerequisites for active topics
+                prereq_rows = (
+                    session.query(TopicPrerequisiteModel)
+                    .filter(TopicPrerequisiteModel.topic_id.in_(active_topic_ids))
+                    .all()
+                )
+                prereq_map: dict[int, list[int]] = {tid: [] for tid in active_topic_ids}
+                for p in prereq_rows:
+                    if p.prerequisite_topic_id in active_id_set:
+                        prereq_map[p.topic_id].append(p.prerequisite_topic_id)
+
+                result: list[TopicRecommendationInput] = []
+                for t in active_topics:
+                    result.append(
+                        TopicRecommendationInput(
+                            topic_id=t.id,
+                            name=t.title,
+                            mastery_level="Not Assessed",
+                            score=0.0,
+                            prerequisites=tuple(sorted(prereq_map.get(t.id, []))),
+                        )
+                    )
+                return result
+
+            # Fallback: Check legacy course_topics table
+            legacy_rows = (
                 session.query(CourseTopicModel)
                 .filter_by(course_id=course_id)
                 .order_by(CourseTopicModel.order_index.asc(), CourseTopicModel.id.asc())
                 .all()
             )
             result = []
-            for r in rows:
+            for r in legacy_rows:
                 prereqs = tuple(json.loads(r.prerequisites_json)) if r.prerequisites_json else ()
                 result.append(
                     TopicRecommendationInput(
@@ -145,8 +200,46 @@ class AdaptiveRepository:
             session.commit()
 
     def get_course_prerequisites(self, course_id: int) -> dict[int, set[int]]:
-        """Retrieve course prerequisite mapping (topic_id -> set of prerequisite IDs)."""
+        """Retrieve course prerequisite mapping (topic_id -> set of prerequisite IDs).
+
+        Dual-Source Resolution (GAP-03):
+        1. Authoritative: Queries canonical M1 TopicPrerequisiteModel for active topics.
+        2. Fallback: Queries legacy CourseTopicModel ONLY when no canonical M1 topic records exist.
+        Note: If canonical topic records exist but are all inactive, returns {} without falling back.
+        """
         with self.session_factory() as session:
+            canonical_exists = (
+                session.query(TopicModel.id)
+                .filter_by(course_id=course_id)
+                .first()
+                is not None
+            )
+
+            if canonical_exists:
+                active_topics = (
+                    session.query(TopicModel)
+                    .filter_by(course_id=course_id, is_active=True)
+                    .order_by(TopicModel.order_index.asc(), TopicModel.id.asc())
+                    .all()
+                )
+                if not active_topics:
+                    return {}
+
+                active_topic_ids = [t.id for t in active_topics]
+                active_id_set = set(active_topic_ids)
+
+                prereq_rows = (
+                    session.query(TopicPrerequisiteModel)
+                    .filter(TopicPrerequisiteModel.topic_id.in_(active_topic_ids))
+                    .all()
+                )
+                result: dict[int, set[int]] = {tid: set() for tid in active_topic_ids}
+                for p in prereq_rows:
+                    if p.prerequisite_topic_id in active_id_set:
+                        result[p.topic_id].add(p.prerequisite_topic_id)
+                return result
+
+            # Fallback: Query legacy course_topics table
             rows = session.query(CourseTopicModel).filter_by(course_id=course_id).all()
             result = {}
             for r in rows:
