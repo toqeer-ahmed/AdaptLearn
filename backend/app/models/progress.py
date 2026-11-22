@@ -1,24 +1,21 @@
 """SQLAlchemy ORM models for Module 5: Progress Analytics & Instructor Dashboard."""
+
 from sqlalchemy import Column, Float, Integer, String, Text, UniqueConstraint
 
 from app.db.base import Base
+from app.models.course import EnrollmentModel
 
-
-class EnrollmentModel(Base):
-    """Course enrollment records (FR-04, NFR-09)."""
-    __tablename__ = "course_enrollments"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    student_id = Column(Integer, nullable=False, index=True)
-    course_id = Column(Integer, nullable=False, index=True)
-
-    __table_args__ = (
-        UniqueConstraint("student_id", "course_id", name="uq_student_course_enrollment"),
-    )
+__all__ = [
+    "AttemptModel",
+    "CourseOwnerModel",
+    "EnrollmentModel",
+    "QuestionStatsModel",
+]
 
 
 class CourseOwnerModel(Base):
     """Course ownership mapping for instructors (NFR-05, NFR-06)."""
+
     __tablename__ = "course_owners"
 
     course_id = Column(Integer, primary_key=True, index=True)
@@ -27,6 +24,7 @@ class CourseOwnerModel(Base):
 
 class AttemptModel(Base):
     """Completed student quiz attempt records (FR-15, FR-21)."""
+
     __tablename__ = "quiz_attempts"
 
     attempt_id = Column(Integer, primary_key=True, index=True)
@@ -41,6 +39,7 @@ class AttemptModel(Base):
 
 class QuestionStatsModel(Base):
     """Aggregated question metrics for instructor analytics (FR-24)."""
+
     __tablename__ = "course_question_stats"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

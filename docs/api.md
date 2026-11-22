@@ -71,36 +71,103 @@
 ### 2.2 Course Management
 - `GET /api/v1/courses`
   - **Access**: Authenticated
-  - **Responses**: `200 OK` — List of active courses. (Instructors see their authored courses; students see enrolled courses).
+  - **Query Params**: `instructor_id` (optional int), `is_archived` (optional bool), `enrolled` (optional bool)
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` — `CourseListResponse` containing `courses: list[CourseResponse]` and `total: int`.
 - `POST /api/v1/courses`
   - **Access**: Instructor Only
-  - **Request Body**: `{"title": "Software QA", "description": "...", "strategy_name": "rule_based"}`
-  - **Responses**: `201 Created`
-- `PATCH /api/v1/courses/{id}`
+  - **Status**: **Implemented & Verified** (Stage 5: Task COMMIT-04, Decisions D1, D7)
+  - **Request Body**: `{"title": "Software QA", "description": "...", "course_code": "SQA-423-2026"}`
+  - **Responses**:
+    - `201 Created`: Returns `CourseResponse` with uppercase normalized code.
+    - `400 Bad Request` / `422 Unprocessable Entity`: Invalid title or course code.
+    - `403 Forbidden`: Authenticated user is not an instructor.
+    - `409 Conflict`: Course code is already registered.
+- `GET /api/v1/courses/{id}`
+  - **Access**: Authenticated
+  - **Status**: **Implemented & Verified** (Stage 5, Decision D3)
+  - **Responses**: `200 OK` / `403 Forbidden` (archived course historical access restricted to enrolled students and owner) / `404 Not Found`.
+- `PUT /api/v1/courses/{id}` & `PATCH /api/v1/courses/{id}`
   - **Access**: Course Owner Only (403 Forbidden for other instructors)
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` / `400 Bad Request` (cannot modify archived courses, Decision D3).
 - `POST /api/v1/courses/{id}/archive`
-  - **Access**: Course Owner Only. Sets `is_archived = true`. Archived courses reject new enrollments and quiz attempts.
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified** (Stage 5, Decision D3)
+  - **Responses**: `200 OK` — Sets `is_archived = true`. Archived courses reject new enrollments and modifications.
+- `POST /api/v1/courses/{id}/publish` & `POST /api/v1/courses/{id}/unarchive`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified** (Stage 5, Decision D3)
+  - **Responses**: `200 OK` — Sets `is_archived = false`.
 - `POST /api/v1/courses/{id}/enroll`
   - **Access**: Student Only
-  - **Request Body**: `{"course_code": "SE431-2026"}`
-  - **Responses**: `200 OK` / `404 Not Found` (invalid code) / `409 Conflict` (already enrolled).
+  - **Status**: **Implemented & Verified** (Stage 5, Decisions D3, D6)
+  - **Request Body**: `{"course_code": "SQA-423-2026"}` (optional verification)
+  - **Responses**:
+    - `200 OK`: `{"id": 1, "student_id": 101, "course_id": 1}`
+    - `400 Bad Request`: Invalid/mismatched course code or course is archived.
+    - `403 Forbidden`: Non-student principal or enrolling another student.
+    - `409 Conflict`: Student is already enrolled.
+- `GET /api/v1/courses/{id}/enrollment`
+  - **Access**: Authenticated
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` (returns enrollment record) / `404 Not Found` (user is not enrolled).
+- `GET /api/v1/courses/enrolled` & `GET /api/v1/users/me/enrollments`
+  - **Access**: Student Only
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` — `UserEnrollmentsResponse` listing all courses the student is enrolled in.
+- `GET /students/{student_id}/enrollments`
+  - **Access**: Authenticated (Privacy NFR-06: Student can only view own; 403 Forbidden otherwise)
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` / `403 Forbidden`.
+- `GET /api/v1/courses/{id}/students`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` — `list[int]` of enrolled student IDs.
 
 ### 2.3 Topic Hierarchy & Prerequisites
 - `GET /api/v1/courses/{id}/topics`
-  - **Access**: Enrolled Students & Course Instructor
-  - **Responses**: `200 OK` — Ordered topic list including sequence index and prerequisite topic IDs.
+  - **Access**: Authenticated (Enrolled Students & Course Owner; archived view restricted to enrolled/owner)
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` — `TopicListResponse` ordered by `order_index ASC`.
 - `POST /api/v1/courses/{id}/topics`
   - **Access**: Course Owner Only
-  - **Request Body**: `{"title": "Unit Testing", "order_index": 1}`
-- `PUT /api/v1/courses/{id}/topics/order`
+  - **Status**: **Implemented & Verified** (Stage 5, Decision D3)
+  - **Request Body**: `{"title": "Unit Testing", "order_index": 1, "description": "..."}`
+  - **Responses**: `201 Created` / `400 Bad Request` (if course is archived) / `403 Forbidden`.
+- `GET /api/v1/topics/{id}` & `GET /api/v1/courses/{course_id}/topics/{id}`
+  - **Access**: Authenticated
+  - **Status**: **Implemented & Verified** (Stage 5)
+  - **Responses**: `200 OK` / `404 Not Found`.
+- `PUT /api/v1/topics/{id}` & `PATCH /api/v1/topics/{id}`
   - **Access**: Course Owner Only
-  - **Request Body**: `{"topic_ids": [3, 1, 2]}` (updates `order_index` sequence)
-- `POST /api/v1/topics/{id}/prerequisites`
+  - **Status**: **Implemented & Verified** (Stage 5, Decision D3)
+  - **Responses**: `200 OK` / `400 Bad Request` (if course is archived) / `403 Forbidden` / `404 Not Found`.
+- `DELETE /api/v1/topics/{id}` & `DELETE /api/v1/courses/{course_id}/topics/{id}`
   - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified** (Stage 5, Decisions D2, D3)
+  - **Responses**:
+    - `200 OK`: `{"status": "success", "message": "Topic ... deleted successfully"}`
+    - `400 Bad Request`: If course is archived OR topic is referenced by quiz questions in `QuestionStatsModel` (Decision D2).
+    - `403 Forbidden`: Non-owner instructor.
+    - `404 Not Found`: Nonexistent topic.
+- `PUT /api/v1/courses/{id}/topics/order` & `PUT /api/v1/courses/{id}/topics/reorder`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified** (Stage 5, Decision D3)
+  - **Request Body**: `{"topic_ids": [3, 1, 2]}` or `{"topics": [{"topic_id": 3, "order_index": 0}, ...]}`
+  - **Responses**: `200 OK` — `TopicListResponse` with atomically updated order indices.
+- `POST /api/v1/topics/{id}/prerequisites` & `POST /api/v1/courses/{course_id}/topics/{id}/prerequisites`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified** (Stage 5, FR-08, FR-09)
   - **Request Body**: `{"prerequisite_topic_id": 2}`
   - **Validation**:
-    - `400 Bad Request`: Prerequisite belongs to a different course.
-    - `409 Conflict`: Self-prerequisite (`id == prerequisite_topic_id`) or circular dependency (detected via cycle check algorithm).
+    - `201 Created`: Prerequisite relationship established.
+    - `400 Bad Request`: Self-prerequisite (`id == prerequisite_topic_id`), cross-course prerequisite, or circular prerequisite dependency (DFS cycle detection algorithm).
+    - `403 Forbidden`: Non-owner instructor.
+- `DELETE /api/v1/topics/{id}/prerequisites/{prerequisite_id}`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified** (Stage 5, FR-08)
+  - **Responses**: `200 OK` / `403 Forbidden` / `404 Not Found`.
 
 ---
 

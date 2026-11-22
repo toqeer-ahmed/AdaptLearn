@@ -34,7 +34,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
             safe_errors.append(item)
 
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={
                 "success": False,
                 "error": {
@@ -44,4 +44,3 @@ def setup_exception_handlers(app: FastAPI) -> None:
                 },
             },
         )
-
