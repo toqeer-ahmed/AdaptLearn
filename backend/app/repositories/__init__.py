@@ -7,6 +7,10 @@ from app.repositories.adaptive_repository import (
     AdaptiveRepository,
     get_adaptive_repository,
 )
+from app.repositories.course_repository import (
+    CourseRepository,
+    get_course_repository,
+)
 from app.repositories.progress_repository import (
     AttemptRecord,
     ProgressRepository,
@@ -22,11 +26,13 @@ from app.repositories.user_repository import (
 __all__ = [
     "AdaptiveRepository",
     "AttemptRecord",
+    "CourseRepository",
     "ProgressRepository",
     "QuestionStatsRecord",
     "UserRecord",
     "UserRepository",
     "get_adaptive_repository",
+    "get_course_repository",
     "get_progress_repository",
     "get_user_repository",
 ]

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.session import SessionLocal, init_db
+from app.models.course import CourseModel
 from app.models.progress import AttemptModel, CourseOwnerModel, EnrollmentModel, QuestionStatsModel
 
 
@@ -93,8 +94,13 @@ class ProgressRepository:
             session.commit()
 
     def is_course_owner(self, course_id: int, instructor_id: int) -> bool:
-        """Check if an instructor is the owner of a course."""
+        """Check if an instructor is the owner of a course (Decision D7)."""
         with self.session_factory() as session:
+            # Check authoritative CourseModel first
+            course = session.query(CourseModel).filter_by(id=course_id).first()
+            if course is not None:
+                return course.instructor_id == instructor_id
+            # Fallback to legacy course_owners fixture table
             row = session.query(CourseOwnerModel).filter_by(course_id=course_id).first()
             return row.instructor_id == instructor_id if row else False
 

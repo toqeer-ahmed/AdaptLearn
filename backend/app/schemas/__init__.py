@@ -1,2 +1,36 @@
 """Data transfer schemas (Pydantic models)."""
+from app.schemas.course import (
+    CourseCreate,
+    CourseListResponse,
+    CourseResponse,
+    CourseUpdate,
+    EnrollmentRequest,
+    EnrollmentResponse,
+    TopicCreate,
+    TopicListResponse,
+    TopicPrerequisiteCreate,
+    TopicPrerequisiteResponse,
+    TopicReorderItem,
+    TopicReorderRequest,
+    TopicResponse,
+    TopicUpdate,
+    UserEnrollmentsResponse,
+)
 
+__all__ = [
+    "CourseCreate",
+    "CourseListResponse",
+    "CourseResponse",
+    "CourseUpdate",
+    "EnrollmentRequest",
+    "EnrollmentResponse",
+    "TopicCreate",
+    "TopicListResponse",
+    "TopicPrerequisiteCreate",
+    "TopicPrerequisiteResponse",
+    "TopicReorderItem",
+    "TopicReorderRequest",
+    "TopicResponse",
+    "TopicUpdate",
+    "UserEnrollmentsResponse",
+]
