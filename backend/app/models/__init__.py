@@ -3,9 +3,11 @@ from app.db.base import Base
 from app.models.adaptive import CourseSettingsModel, CourseTopicModel, StudentTopicResponseModel
 from app.models.course import CourseModel, EnrollmentModel, TopicModel, TopicPrerequisiteModel
 from app.models.progress import AttemptModel, CourseOwnerModel, QuestionStatsModel
+from app.models.quiz import AttemptAnswerModel, QuestionModel, QuizModel, QuizQuestionModel
 from app.models.user import UserModel
 
 __all__ = [
+    "AttemptAnswerModel",
     "AttemptModel",
     "Base",
     "CourseModel",
@@ -13,7 +15,10 @@ __all__ = [
     "CourseSettingsModel",
     "CourseTopicModel",
     "EnrollmentModel",
+    "QuestionModel",
     "QuestionStatsModel",
+    "QuizModel",
+    "QuizQuestionModel",
     "StudentTopicResponseModel",
     "TopicModel",
     "TopicPrerequisiteModel",

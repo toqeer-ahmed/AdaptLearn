@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     health,
     learning_paths,
     progress,
+    quizzes,
 )
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "health",
     "learning_paths",
     "progress",
+    "quizzes",
 ]
