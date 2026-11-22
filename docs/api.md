@@ -173,37 +173,94 @@
 
 ## 3. Module 2: Quiz & Assessment Engine (Mustajaab)
 
-### 3.1 Quiz & Question Authoring
-- `POST /api/v1/courses/{id}/quizzes`
-  - **Access**: Course Owner Only
-  - **Request Body**: `{"title": "Quiz 1: Boundary Analysis", "topic_id": 1, "is_practice": false}`
-  - **Responses**: `201 Created`
-- `POST /api/v1/quizzes/{id}/questions`
-  - **Access**: Course Owner Only
+> **Implementation Status**: **100% Implemented & Verified on `feature/m2-quiz-engine`** (56/56 tests passing).
+> **Source**: `backend/app/api/v1/endpoints/quizzes.py`, `backend/app/services/quiz_service.py`, `backend/app/models/quiz.py`.
+
+### 3.1 Question Bank Management (FR-08, FR-09)
+- `POST /api/v1/courses/{course_id}/questions`
+  - **Access**: Course Owner Only (NFR-05)
+  - **Status**: **Implemented & Verified**
   - **Request Body**:
     ```json
     {
+      "course_id": 1,
+      "topic_id": 10,
       "statement": "What is the minimum number of tests for 2-boundary value analysis?",
       "options": ["2 tests", "4 tests", "6 tests"],
       "correct_option_index": 1,
-      "difficulty": "Medium",
-      "explanation": "Standard 2-boundary analysis tests min and max points."
+      "difficulty": "medium",
+      "explanation": "Standard 2-boundary analysis tests min and max boundary points."
     }
     ```
-  - **Constraints (D3)**: `len(options)` between 2 and 5; `0 <= correct_option_index < len(options)`.
-  - *Status*: **Requires Mustajaab's confirmation on D2 (1:N question ownership) and D3.**
-- `DELETE /api/v1/questions/{id}`
-  - **Access**: Course Owner Only
-  - **Rules (FR-09)**: If the question has existing attempt records, it cannot be deleted; it is flagged `is_active = false`.
-- `POST /api/v1/quizzes/{id}/publish`
-  - **Access**: Course Owner Only. Students can only see and attempt published quizzes (FR-10).
+  - **Validation & Bounds (Decision D3, FR-25)**:
+    - `len(options)` between 2 and 5 items.
+    - `0 <= correct_option_index < len(options)`.
+    - `statement` cannot be empty or whitespace only.
+    - `difficulty` case-normalized to `"easy"`, `"medium"`, or `"hard"`.
+  - **Responses**: `201 Created` / `400 Bad Request` / `403 Forbidden` / `422 Unprocessable Entity`.
 
-### 3.2 Quiz Taking & Attempt Submission
-- `GET /api/v1/quizzes/{id}`
-  - **Access**: Enrolled Student
-  - **Responses**: `200 OK` — Returns quiz title and array of questions **without** `correct_option_index` or `explanation`.
-- `POST /api/v1/quizzes/{id}/attempts`
-  - **Access**: Enrolled Student
+- `PATCH /api/v1/questions/{question_id}`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified**
+  - **Request Body**: Optional fields: `statement`, `options`, `correct_option_index`, `difficulty`, `explanation`, `is_active`.
+  - **Responses**: `200 OK` / `404 Not Found` / `403 Forbidden`.
+
+- `DELETE /api/v1/questions/{question_id}`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified (FR-09)**
+  - **Behavior**:
+    - If question has **zero** attempts in `attempt_answers`, it is permanently hard-deleted.
+    - If question has **existing attempts**, it is safely soft-deleted (`is_active = false`), preserving attempt integrity.
+  - **Responses**: `200 OK`: `{"status": "soft_deleted" | "deleted", "question_id": id}`.
+
+### 3.2 Quiz Creation & Management (FR-10)
+- `POST /api/v1/courses/{course_id}/quizzes`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified**
+  - **Request Body**:
+    ```json
+    {
+      "course_id": 1,
+      "title": "Boundary Testing Assessment",
+      "description": "Mid-term evaluation for software testing",
+      "topic_id": 10,
+      "question_ids": [101, 102, 103],
+      "is_published": false,
+      "is_practice": false
+    }
+    ```
+  - **Responses**: `201 Created`
+
+- `GET /api/v1/courses/{course_id}/quizzes`
+  - **Access**: Enrolled Students & Course Instructors
+  - **Query Params**: `published_only=true` (students automatically see published only)
+  - **Responses**: `200 OK` — Array of `QuizSummaryResponse`.
+
+- `POST /api/v1/quizzes/{quiz_id}/publish`
+  - **Access**: Course Owner Only
+  - **Status**: **Implemented & Verified**
+  - **Query Params**: `is_published=true|false`
+  - **Guards**: Cannot publish a quiz containing zero questions (`400 Bad Request`).
+  - **Responses**: `200 OK`
+
+### 3.3 Dynamic Practice Quizzes (FR-12)
+- `POST /api/v1/courses/{course_id}/topics/{topic_id}/practice-quiz`
+  - **Access**: Enrolled Students & Instructors
+  - **Status**: **Implemented & Verified**
+  - **Request Body**: `{"question_count": 5}` (default: 5, bounds: 1..20)
+  - **Behavior**: Dynamically selects active questions for the topic and creates an on-demand practice quiz (`is_practice = true`, `is_published = true`).
+  - **Responses**: `201 Created`
+
+### 3.4 Student Quiz Taking & Automated Grading (FR-11, FR-13, FR-14)
+- `GET /api/v1/quizzes/{quiz_id}`
+  - **Access**: Enrolled Student or Course Instructor
+  - **Status**: **Implemented & Verified (FR-11, Student-Safe Projection)**
+  - **Behavior**: Returns quiz and question sequence **strictly stripping** `correct_option_index` and `explanation` so answer keys are never exposed before submission.
+  - **Responses**: `200 OK` (`QuizStudentSafeResponse`) / `403 Forbidden` / `404 Not Found`.
+
+- `POST /api/v1/quizzes/{quiz_id}/attempts`
+  - **Access**: Enrolled Student Only
+  - **Status**: **Implemented & Verified (FR-13, NFR-08)**
   - **Request Body**:
     ```json
     {
@@ -213,17 +270,23 @@
       ]
     }
     ```
-  - **Behavior & Transaction Boundary (NFR-08)**:
-    - Executed in a single atomic database transaction.
-    - Locks the student's mastery records using `SELECT ... FOR UPDATE` (TC-31).
-    - Grades answers against stored `correct_option_index`.
-    - Updates M3 mastery scores for all covered topics.
-    - Saves `quiz_attempts` and `attempt_answers`.
-    - Publishes `AttemptSubmitted` event to `EventBus` **after transaction commit**.
-  - **Responses**: `201 Created` — Returns score and attempt summary.
-- `GET /api/v1/attempts/{id}`
-  - **Access**: Attempt Owner & Course Instructor Only
-  - **Responses**: `200 OK` — Detailed result: overall score, per-topic score, student selection, correct answer, and explanations (FR-14).
+  - **Execution & Single Atomic Transaction (NFR-08)**:
+    1. Validates student enrollment and quiz publication state.
+    2. Enforces unique answers per question (duplicate submission rejected with `400 Bad Request`).
+    3. Grades submitted answers against stored `correct_option_index`.
+    4. Computes overall score and per-topic score breakdown with 4-decimal precision.
+    5. In a single atomic database transaction:
+       - Inserts attempt summary into `attempts` (`AttemptModel`).
+       - Inserts answer choices into `attempt_answers` (`AttemptAnswerModel`).
+       - Updates question aggregate performance metrics in `question_stats` (`QuestionStatsModel` for FR-24).
+       - Appends topic responses into `student_topic_responses` (`StudentTopicResponseModel` for FR-16).
+       - Automatically rolls back all operations if any failure occurs.
+  - **Responses**: `200 OK` (`AttemptResultResponse`) / `400 Bad Request` / `403 Forbidden` / `422 Unprocessable Entity`.
+
+- `GET /api/v1/attempts/{attempt_id}`
+  - **Access**: Attempt Owner Student or Course Instructor Only (NFR-06 Privacy Guard)
+  - **Status**: **Implemented & Verified (FR-14, NFR-06)**
+  - **Responses**: `200 OK` — Full result including score, topic breakdown, selected vs. correct options, and explanations. Cross-student access is rejected with `403 Forbidden`.
 
 ---
 

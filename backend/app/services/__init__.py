@@ -27,6 +27,10 @@ from app.services.progress_service import (
     ProgressService,
     get_progress_service,
 )
+from app.services.quiz_service import (
+    QuizService,
+    get_quiz_service,
+)
 
 __all__ = [
     "AdaptiveService",
@@ -35,10 +39,12 @@ __all__ = [
     "CourseService",
     "LearningPathService",
     "ProgressService",
+    "QuizService",
     "get_adaptive_service",
     "get_analytics_service",
     "get_auth_service",
     "get_course_service",
     "get_learning_path_service",
     "get_progress_service",
+    "get_quiz_service",
 ]

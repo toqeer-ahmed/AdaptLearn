@@ -17,6 +17,10 @@ from app.repositories.progress_repository import (
     QuestionStatsRecord,
     get_progress_repository,
 )
+from app.repositories.quiz_repository import (
+    QuizRepository,
+    get_quiz_repository,
+)
 from app.repositories.user_repository import (
     UserRecord,
     UserRepository,
@@ -29,10 +33,12 @@ __all__ = [
     "CourseRepository",
     "ProgressRepository",
     "QuestionStatsRecord",
+    "QuizRepository",
     "UserRecord",
     "UserRepository",
     "get_adaptive_repository",
     "get_course_repository",
     "get_progress_repository",
+    "get_quiz_repository",
     "get_user_repository",
 ]

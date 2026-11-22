@@ -34,7 +34,7 @@ In accordance with IEEE Std 1044, defects are categorized by technical impact (s
 | **DEF-AUTH-002** | FINAL-03 Audit | Auth credentials lack cryptographic signing, HMAC/RSA validation, and expiry checks (simulated regex). | S1 - Critical | P1 - Immediate | `backend/app/core/security.py`<br>`backend/app/core/auth.py` | Toqeer Ahmed | **RESOLVED** | CAPA-AUTH-002 | Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed) |
 | **DEF-AUTH-003** | FINAL-03 Audit | Missing backend user registration, login, and salted bcrypt password hashing endpoints. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/endpoints/auth.py`<br>`backend/app/core/security.py` | Toqeer / Hiba | **RESOLVED** | CAPA-AUTH-003 | Verified by `backend/tests/unit/test_security_auth.py` (30/30 passed) |
 | **DEF-DATA-001** | FINAL-03 Audit | Repositories rely on volatile in-memory dicts; 100% data loss across restart; zero ACID transactions. | S2 - Major | P1 - Immediate | `backend/app/repositories/adaptive_repository.py`<br>`backend/app/repositories/progress_repository.py` | Toqeer Ahmed | **RESOLVED** | CAPA-DATA-001 | Verified by `backend/tests/unit/test_persistence.py` (9/9 passed) |
-| **DEF-MOD-001** | FINAL-03 Audit | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main` branch. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18-21` | Hiba / Mustajaab | **OPEN** | CAPA-MOD-001 | Awaiting Batch D merge |
+| **DEF-MOD-001** | FINAL-03 Audit | Missing Module 1 (Hiba) and Module 2 (Mustajaab) backend implementations on `main` branch. | S1 - Critical | P1 - Immediate | `backend/app/api/v1/api.py:18-21` | Hiba / Mustajaab | **PARTIALLY RESOLVED** | CAPA-MOD-001 | Module 2 100% verified on `feature/m2-quiz-engine` (56/56 tests passing); awaiting Module 1 & `main` merge |
 | **DEF-ARCH-001** | FINAL-03 Audit | SE423 rubric requirement for Creational Pattern (Factory Method) unmet (only dictionary lookup exists). | S3 - Moderate | P2 - High | `backend/app/engine/recommendation_strategy.py`<br>`backend/app/services/adaptive_service.py` | Toqeer Ahmed | **RESOLVED** | CAPA-ARCH-001 | Verified by `backend/tests/unit/test_recommendation_strategy.py` (18/18 passed) |
 | **DEF-FE-001** | FINAL-03 Audit | Frontend Assessment and Authentication views operate in simulated/preview mode with blocked backend endpoints. | S2 - Major | P2 - High | `frontend/src/components/AssessmentView.jsx`<br>`frontend/src/components/AuthView.jsx` | Toqeer Ahmed | **OPEN** | CAPA-FE-001 | Awaiting Batch A/D fix |
 | **DEF-DOC-001** | FINAL-03 Audit | SQA documentation test count discrepancy: earlier documents cite 82/87 tests instead of 150. | S3 - Moderate | P2 - High | `docs/sqa/requirements_traceability_matrix.md`<br>`docs/sqa/risk_register.md`<br>`docs/sqa/formal_inspection_report.md`<br>`docs/sqa/test_execution_report.md` | Toqeer Ahmed | **RESOLVED** | CAPA-DOC-001 | Verified in Task COMMIT-07 across all 14 test modules (150/150 passed) |
@@ -249,13 +249,33 @@ Neither Hiba (M1/M4) nor Mustajaab (M2) has pushed code to the repository. The r
 Integrated multi-module backend with M1, M2, M3, M4, and M5 active on `main`.
 
 #### Actual Result
-Modules 1 and 2 are absent from the Git repository.
+Module 1 is absent from the Git repository. Module 2 was initially absent from `main`.
 
 #### Associated CAPA Reference
 - `CAPA-MOD-001` (Batch D fast-track closure)
 
+#### Corrective Action Taken (Module 2 — Mustajaab Ul Fida Qadri)
+1. **Relational Models (`backend/app/models/quiz.py`)**:
+   - Implemented `QuestionModel`, `QuizModel`, `QuizQuestionModel`, and `AttemptAnswerModel` registered with `Base.metadata`.
+2. **Persistent Repository (`backend/app/repositories/quiz_repository.py`)**:
+   - Implemented question CRUD, soft-delete check (`AttemptAnswerModel` check), ordered quiz assembly, and active practice question filtering.
+3. **Pydantic v2 Schemas (`backend/app/schemas/quiz.py`)**:
+   - Implemented strict input validation and student-safe response projection stripping answers and explanations prior to submission.
+4. **Service & Atomic Transaction (`backend/app/services/quiz_service.py`)**:
+   - Implemented question authoring, quiz lifecycle, and single atomic database transaction persisting attempt summary, attempt answers, question performance stats (FR-24), and adaptive topic responses (FR-16).
+5. **REST API Endpoints (`backend/app/api/v1/endpoints/quizzes.py`)**:
+   - Exposed all quiz management, practice generation, and taking/scoring endpoints with RBAC enforcement.
+6. **Automated Verification Suite (56 Automated Tests)**:
+   - `backend/tests/unit/test_quiz_repository.py` (9 passed)
+   - `backend/tests/unit/test_quiz_schemas.py` (18 passed)
+   - `backend/tests/unit/test_quiz_service.py` (14 passed)
+   - `backend/tests/unit/test_quiz_scoring.py` (11 passed, white-box basis path testing)
+   - `backend/tests/integration/test_quiz_api.py` (4 passed)
+
 #### Resolution & Verification
-- **Status**: **OPEN**
+- **Status**: **PARTIALLY RESOLVED** (Module 2 100% verified on `feature/m2-quiz-engine`; Module 1 pending)
+- **Verified Date**: 2026-11-21
+- **Verification Evidence**: All 56 Module 2 tests passing in 8.5s; 83/83 total regression tests passing. Zero regressions across existing persistence and recommendation strategy suites.
 
 ---
 

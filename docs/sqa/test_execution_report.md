@@ -51,7 +51,12 @@
 | 12 | **Analytics API (Integration)**| `backend/tests/integration/test_instructor_analytics_api.py` | 6 | 6 | 0 | 0.24s | FR-03, FR-22..24, TC-03-1, TC-22-2 (RBAC) |
 | 13 | **Cross-Module Integration** | `backend/tests/integration/test_cross_module_integration.py` | 5 | 5 | 0 | 0.25s | End-to-end Quiz $\rightarrow$ Mastery $\rightarrow$ Analytics |
 | 14 | **System Core Health** | `backend/tests/test_health.py` | 3 | 3 | 0 | 0.14s | REQ-SYS-001 (Root, health, schema) |
-| **Total** | **Full Regression Suite** | **14 Test Modules** | **150** | **150** | **0** | **35.39s** | **100% Pass Rate** |
+| 15 | **Quiz Repository & Persistence (Unit)** | `backend/tests/unit/test_quiz_repository.py` | 9 | 9 | 0 | 0.50s | FR-08, FR-09, FR-10, FR-12, NFR-09 (Soft-delete & persistence) |
+| 16 | **Quiz Schemas & Input Bounds (Unit)** | `backend/tests/unit/test_quiz_schemas.py` | 18 | 18 | 0 | 0.05s | FR-08, FR-11, FR-25, NFR-05 (BVA, student-safe projection) |
+| 17 | **Quiz Service & Workflows (Unit)** | `backend/tests/unit/test_quiz_service.py` | 14 | 14 | 0 | 4.50s | FR-08..FR-14, NFR-05, NFR-08 (RBAC, practice quiz, atomic) |
+| 18 | **White-Box Basis Path Scoring (Unit)** | `backend/tests/unit/test_quiz_scoring.py` | 11 | 11 | 0 | 4.50s | FR-13, FR-14, NFR-08, NFR-10 ($V(G)=9$ Basis Paths, Rollback) |
+| 19 | **Quiz API Lifecycle (Integration)** | `backend/tests/integration/test_quiz_api.py` | 4 | 4 | 0 | 4.50s | FR-08..FR-14, NFR-05, NFR-06 (End-to-end author $\to$ take $\to$ score) |
+| **Total** | **Full Regression + Module 2** | **19 Test Modules** | **206** | **206** | **0** | **49.44s** | **100% Pass Rate** |
 
 ---
 
@@ -119,6 +124,39 @@
 - `test_instructor_analytics_api.py` (6 tests): Mastery distribution, student roster, question performance, 403 student rejection, 403 non-owner rejection.
 - `test_cross_module_integration.py` (5 tests): Full student quiz $\rightarrow$ mastery recalculation $\rightarrow$ progress dashboard $\rightarrow$ instructor analytics.
 - `test_health.py` (3 tests): Root `/`, `/health`, and `/api/v1/health`.
+
+### 3.7 Module 2: Quiz & Assessment Engine Suites (Mustajaab Ul Fida Qadri — 56 Tests)
+- **Quiz Repository & Persistence (`test_quiz_repository.py` — 9 Tests)**:
+  - Question creation, update, and physical SQLite restart survival across repository recreation (FR-08, NFR-09).
+  - Soft-delete enforcement (FR-09): hard-delete when unanswered; soft-delete (`is_active = false`) when existing answers reference the question.
+  - Ordered quiz assembly via `quiz_questions` join table (FR-10).
+  - Active question filtering by topic for practice quizzes (FR-12).
+  - Attempt answer recording and retrieval (FR-13).
+- **Quiz Schemas & Input Bounds (`test_quiz_schemas.py` — 18 Tests)**:
+  - Boundary Value Analysis on option counts (2–5 allowed; <2 or >5 rejected with HTTP 422).
+  - Zero-based index bounds check ($0 \le \text{correct\_option\_index} < \text{len(options)}$; negative or out-of-bounds rejected).
+  - Whitespace trimming and empty statement rejection.
+  - Difficulty case normalization (`easy`, `medium`, `hard`).
+  - Student-safe response projection stripping `correct_option_index` and `explanation` (FR-11).
+- **Quiz Service & Workflows (`test_quiz_service.py` — 14 Tests)**:
+  - Role-based access control (NFR-05): course owner validation for authoring; enrolled student validation for taking.
+  - Publication state enforcement: unpublished quizzes cannot be retrieved or attempted by students (FR-10, FR-11).
+  - Dynamic on-demand practice quiz assembly (FR-12).
+  - Single atomic database transaction (NFR-08): atomically writes attempt summary, answer choices, course question stats (FR-24), and adaptive topic responses (FR-16).
+  - Cross-student result privacy enforcement (NFR-06, FR-14).
+- **White-Box Basis Path Scoring (`test_quiz_scoring.py` — 11 Tests)**:
+  - Cyclomatic complexity analysis ($V(G) = 9$).
+  - Basis Path 1: All correct submission ($100\%$ score, perfect topic breakdown).
+  - Basis Path 2: All incorrect submission ($0\%$ score).
+  - Basis Path 3: Mixed multi-topic submission with 4-decimal precision verification.
+  - Basis Path 4: Partial submission (unanswered questions receive zero credit; denominator remains total quiz questions).
+  - Defensive branches: Duplicate question rejection (HTTP 400), foreign question rejection (HTTP 400), out-of-bounds option index (HTTP 422), unpublished attempt rejection (HTTP 400), non-existent quiz (HTTP 404), unenrolled student (HTTP 403).
+  - Transaction atomicity: verified complete database rollback on persistence failure.
+- **Quiz API Lifecycle (`test_quiz_api.py` — 4 Tests)**:
+  - End-to-end question bank authoring via REST endpoints.
+  - RBAC verification: student attempt to create question rejected with HTTP 403.
+  - Question update and deletion endpoint verification.
+  - End-to-end quiz taking, grading, and result viewing.
 
 ---
 

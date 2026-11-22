@@ -13,8 +13,8 @@
 | ID | Title | Affected Modules | Status | Primary Reason |
 | :---: | :--- | :---: | :---: | :--- |
 | **D1** | Domain Model & Engine Isolation | All Modules, Core | **Proposed** | Resolves M1 Appendix A; satisfies NFR-05 (pure engine isolation). |
-| **D2** | Single-Quiz Question Ownership | M2 (Mustajaab) | **Proposed** | Simplifies question bank schema; avoids complex join table. |
-| **D3** | Question Structure & Single Correct Index | M2 (Mustajaab) | **Proposed** | Resolves ambiguity between FR-09 and TC-09. |
+| **D2** | Course Question Bank & Ordered Quiz Assembly | M2 (Mustajaab) | **Adopted / Implemented** | Supports course question bank (FR-08), ordered sequence (FR-10), and topic practice generation (FR-12) via `quiz_questions` join table. |
+| **D3** | Question Structure & Single Correct Index | M2 (Mustajaab) | **Adopted / Implemented** | JSON options array (2–5 items) and zero-based integer `correct_option_index`; verified via `test_quiz_schemas.py`. |
 | **D4** | Deterministic Recommendation Ordering | M3 (Toqeer), M4 (Hiba) | **Proposed** | Resolves FR-17 ambiguity on topic ordering after weak topics. |
 | **D5** | User Input & Password String Bounds | M1 (Hiba), Core | **Adopted / Implemented** | Prevents bcrypt 72-byte truncation and DoS vulnerabilities; verified in Task COMMIT-03. |
 | **D6** | SQLAlchemy 2.0 ORM & SQLite / PostgreSQL Architecture | All Modules, CI | **Adopted / Implemented** | Durable persistence across restarts (DEF-DATA-001); verified via `test_persistence.py` in Task COMMIT-04. |
@@ -40,28 +40,25 @@
 
 ---
 
-### D2: Single-Quiz Question Ownership
-- **Status**: **Proposed** (Requires Mustajaab's confirmation)
+### D2: Course Question Bank & Ordered Quiz Assembly
+- **Status**: **Adopted / Implemented** (Confirmed by Mustajaab Ul Fida Qadri)
 - **Affected Modules**: M2: Quiz and Assessment Engine
-- **Context**: M1 described a "question bank" but left open whether questions are globally shared across courses/quizzes via a many-to-many relationship or owned by specific quizzes.
-- **Decision**: One question belongs to exactly one quiz (foreign key `quiz_id` on the `questions` table). Each question is tagged with a single `topic_id` belonging to the quiz's course.
-- **Impact**: Greatly simplifies M2 question authoring, deletion guards (FR-09), and database indexing.
-- **Alternatives Considered**:
-  - *Global question bank with join table `quiz_questions`*: Rejected as overengineering for Milestone 2; complicates answer grading transactions and cascade handling.
+- **Context**: M1 described a "question bank" and required both instructor-authored quizzes (FR-10) and on-demand student practice quizzes for specific topics (FR-12). Storing questions strictly within one quiz prevents practice quiz generation from drawing existing topic questions.
+- **Decision**: Questions belong to a course and topic (`course_id`, `topic_id` on `questions` table). Quizzes link to questions via an association table `quiz_questions` with explicit `sequence_order`.
+- **Impact**: Enables question reuse across quizzes, supports dynamic topic-based practice quiz assembly (FR-12), preserves question authoring independent of quiz creation (FR-08), and allows soft-deletion safeguards based on attempt answer history (FR-09).
+- **Implementation**: Enforced in `backend/app/models/quiz.py` (`QuestionModel`, `QuizModel`, `QuizQuestionModel`) and `backend/app/repositories/quiz_repository.py`. Verified by 9 unit tests in `backend/tests/unit/test_quiz_repository.py`.
 
 ---
 
 ### D3: Question Authoring Constraints & Single Correct Index
-- **Status**: **Proposed** (Requires Mustajaab's confirmation)
+- **Status**: **Adopted / Implemented** (Confirmed by Mustajaab Ul Fida Qadri)
 - **Affected Modules**: M2: Quiz and Assessment Engine
 - **Context**: FR-08 specifies 2 to 5 options with "exactly one correct option." TC-09 tests validation bounds.
 - **Decision**:
   1. Options are stored as a JSON array of strings (minimum length 2, maximum length 5).
   2. Correct answer is represented as a single zero-based integer `correct_option_index` (`0 <= correct_option_index < len(options)`).
-- **Impact**: Pydantic validator rejects out-of-bounds indices and option counts $<2$ or $>5$ before persistence.
-- **Alternatives Considered**:
-  - *Discrete `options` table*: Rejected to avoid multi-table joins on simple multiple-choice evaluations.
-  - *String-based answer matching*: Rejected to avoid whitespace/casing grading bugs.
+- **Impact**: Pydantic v2 schemas reject out-of-bounds indices and option counts $<2$ or $>5$ before persistence. Student-safe schemas strip `correct_option_index` and `explanation` prior to submission.
+- **Implementation**: Enforced in `backend/app/schemas/quiz.py` (`QuestionCreate`, `QuestionStudentSafe`, `QuizStudentSafeResponse`) and `backend/app/models/quiz.py`. Verified by 18 boundary tests in `backend/tests/unit/test_quiz_schemas.py`.
 
 ---
 

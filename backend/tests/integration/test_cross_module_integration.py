@@ -24,6 +24,7 @@ from app.repositories.progress_repository import (
     AttemptRecord,
     get_progress_repository,
 )
+from app.repositories.quiz_repository import get_quiz_repository
 
 
 @pytest.fixture(autouse=True)
@@ -32,13 +33,16 @@ def reset_repositories():
     p_repo = get_progress_repository()
     a_repo = get_adaptive_repository()
     c_repo = get_course_repository()
+    q_repo = get_quiz_repository()
     p_repo.clear()
     a_repo.clear()
     c_repo.clear()
+    q_repo.clear()
     yield
     p_repo.clear()
     a_repo.clear()
     c_repo.clear()
+    q_repo.clear()
 
 
 @pytest.fixture
@@ -75,9 +79,19 @@ class TestCrossModuleEndToEndPipeline:
         a_repo.set_course_topics(
             course_id,
             [
-                TopicRecommendationInput(topic_id=1, name="Basics", mastery_level="Not Assessed", score=0.0),
-                TopicRecommendationInput(topic_id=2, name="Loops", mastery_level="Not Assessed", score=0.0, prerequisites={1}),
-                TopicRecommendationInput(topic_id=3, name="Functions", mastery_level="Not Assessed", score=0.0),
+                TopicRecommendationInput(
+                    topic_id=1, name="Basics", mastery_level="Not Assessed", score=0.0
+                ),
+                TopicRecommendationInput(
+                    topic_id=2,
+                    name="Loops",
+                    mastery_level="Not Assessed",
+                    score=0.0,
+                    prerequisites={1},
+                ),
+                TopicRecommendationInput(
+                    topic_id=3, name="Functions", mastery_level="Not Assessed", score=0.0
+                ),
             ],
         )
 
@@ -159,7 +173,9 @@ class TestCrossModuleEndToEndPipeline:
         )
 
         # Step 4: Verify Student Dashboard Post-Quiz (M5)
-        updated_progress = client.get(f"/api/v1/courses/{course_id}/progress", headers=student_headers)
+        updated_progress = client.get(
+            f"/api/v1/courses/{course_id}/progress", headers=student_headers
+        )
         assert updated_progress.status_code == 200
         prog_data = updated_progress.json()
 
@@ -173,11 +189,17 @@ class TestCrossModuleEndToEndPipeline:
         assert len(recs) > 0
         assert recs[0]["topic_id"] == 2
         assert recs[0]["mastery_level"] == "Weak"
-        assert "remediation" in recs[0]["rationale"].lower() or "practice" in recs[0]["rationale"].lower()
+        assert (
+            "remediation" in recs[0]["rationale"].lower()
+            or "practice" in recs[0]["rationale"].lower()
+        )
 
         # Step 5: Verify Instructor Analytics (M5)
         # Mastery Distribution (FR-23)
-        dist_res = client.get(f"/api/v1/courses/{course_id}/analytics/mastery-distribution", headers=instructor_headers)
+        dist_res = client.get(
+            f"/api/v1/courses/{course_id}/analytics/mastery-distribution",
+            headers=instructor_headers,
+        )
         assert dist_res.status_code == 200
         dist_data = dist_res.json()
         assert dist_data["total_enrolled"] == 1
@@ -191,7 +213,9 @@ class TestCrossModuleEndToEndPipeline:
         assert t3_dist["not_assessed_count"] == 1
 
         # Student Roster Matrix (FR-22)
-        roster_res = client.get(f"/api/v1/courses/{course_id}/analytics/student-roster", headers=instructor_headers)
+        roster_res = client.get(
+            f"/api/v1/courses/{course_id}/analytics/student-roster", headers=instructor_headers
+        )
         assert roster_res.status_code == 200
         roster_data = roster_res.json()
         assert len(roster_data["students"]) == 1
@@ -200,7 +224,9 @@ class TestCrossModuleEndToEndPipeline:
         assert len(student_roster_entry["topic_masteries"]) == 3
 
         # Question Performance Statistics (FR-24)
-        q_stats_res = client.get(f"/api/v1/courses/{course_id}/analytics/questions", headers=instructor_headers)
+        q_stats_res = client.get(
+            f"/api/v1/courses/{course_id}/analytics/questions", headers=instructor_headers
+        )
         assert q_stats_res.status_code == 200
         q_data = q_stats_res.json()
         assert len(q_data["questions"]) == 2
@@ -237,7 +263,9 @@ class TestCrossModuleAuthorizationAndSecurity:
         ]
         for path in instructor_endpoints:
             res = client.get(path, headers=student_headers)
-            assert res.status_code == 403, f"Expected 403 for student on {path}, got {res.status_code}"
+            assert res.status_code == 403, (
+                f"Expected 403 for student on {path}, got {res.status_code}"
+            )
 
     def test_instructor_course_ownership_enforcement(self, client):
         """Multi-tenant isolation (TC-22-2): Instructor cannot access analytics for courses owned by another instructor."""
@@ -245,8 +273,13 @@ class TestCrossModuleAuthorizationAndSecurity:
         course_id = 888
         p_repo.set_course_owner(course_id=course_id, instructor_id=1)  # Owned by Instructor 1
 
-        unauthorized_instructor_headers = {"Authorization": "Bearer token-2-instructor"}  # Instructor 2
-        res = client.get(f"/api/v1/courses/{course_id}/analytics/mastery-distribution", headers=unauthorized_instructor_headers)
+        unauthorized_instructor_headers = {
+            "Authorization": "Bearer token-2-instructor"
+        }  # Instructor 2
+        res = client.get(
+            f"/api/v1/courses/{course_id}/analytics/mastery-distribution",
+            headers=unauthorized_instructor_headers,
+        )
         assert res.status_code == 403
         assert "does not own" in res.json()["error"]["message"].lower()
 
@@ -262,7 +295,9 @@ class TestCrossModuleAuthorizationAndSecurity:
 
         # Student A tries to query progress specifying Student B's ID via query parameter
         headers_a = {"Authorization": f"Bearer token-{student_a}-student"}
-        res = client.get(f"/api/v1/courses/{course_id}/progress?student_id={student_b}", headers=headers_a)
+        res = client.get(
+            f"/api/v1/courses/{course_id}/progress?student_id={student_b}", headers=headers_a
+        )
         assert res.status_code == 403
         assert "another student" in res.json()["error"]["message"].lower()
 
@@ -296,7 +331,9 @@ class TestCanonicalCourseTopicCrossModuleIntegration:
 
         # Step 2: Create M1 Topics with sequential ordering
         top_arrays = c_repo.create_topic(course_id=course_id, title="Arrays & Lists", order_index=0)
-        top_stacks = c_repo.create_topic(course_id=course_id, title="Stacks & Queues", order_index=1)
+        top_stacks = c_repo.create_topic(
+            course_id=course_id, title="Stacks & Queues", order_index=1
+        )
         top_trees = c_repo.create_topic(course_id=course_id, title="Binary Trees", order_index=2)
 
         # Step 3: Add Prerequisites: Stacks requires Arrays; Trees requires Stacks
@@ -357,3 +394,161 @@ class TestCanonicalCourseTopicCrossModuleIntegration:
         assert len(student_entry["topic_masteries"]) == 3
         roster_topic_names = [tm["topic_name"] for tm in student_entry["topic_masteries"]]
         assert roster_topic_names == ["Arrays & Lists", "Stacks & Queues", "Binary Trees"]
+
+
+class TestM2CanonicalIntegration:
+    """Validate Module 2 Quiz Engine integration with M1 Canonical Curriculum, M3, and M5."""
+
+    def test_m1_m2_m3_m5_full_curriculum_quiz_to_adaptive_to_progress(self, client):
+        """End-to-End:
+        1. M1 creates Course & Topics with prerequisites.
+        2. M2 Question Bank validates canonical M1 topic IDs and rejects invalid IDs.
+        3. M2 Quiz Engine creates & publishes Quiz.
+        4. Student takes Quiz via M2 -> atomic scoring & persistence.
+        5. Attempt feeds M3 Adaptive Engine (StudentTopicResponseModel).
+        6. Attempt feeds M5 Progress & Analytics (AttemptModel & QuestionStatsModel).
+        """
+        c_repo = get_course_repository()
+        p_repo = get_progress_repository()
+        a_repo = get_adaptive_repository()
+
+        instructor_id = 1
+        student_id = 42
+        instructor_headers = {"Authorization": f"Bearer token-{instructor_id}-instructor"}
+        student_headers = {"Authorization": f"Bearer token-{student_id}-student"}
+
+        # 1. Setup M1 Course & Topics
+        course = c_repo.create_course(
+            title="Software Testing Masterclass",
+            course_code="ST401",
+            instructor_id=instructor_id,
+        )
+        c_id = course.id
+        p_repo.set_course_owner(course_id=c_id, instructor_id=instructor_id)
+
+        t1 = c_repo.create_topic(course_id=c_id, title="Equivalence Partitioning", order_index=0)
+        t2 = c_repo.create_topic(course_id=c_id, title="Boundary Value Analysis", order_index=1)
+        c_repo.add_prerequisite(topic_id=t2.id, prerequisite_topic_id=t1.id)
+
+        # Enroll student in course
+        p_repo.enroll_student(student_id=student_id, course_id=c_id)
+
+        # 2. M2 Question Bank: Validation of canonical topic IDs
+        # Attempt to create question with invalid non-existent topic ID -> Rejects with 400!
+        invalid_q_res = client.post(
+            f"/api/v1/courses/{c_id}/questions?topic_id=9999",
+            json={
+                "statement": "Invalid Topic Question?",
+                "options": ["A", "B"],
+                "correct_option_index": 0,
+                "difficulty": "Easy",
+            },
+            headers=instructor_headers,
+        )
+        assert invalid_q_res.status_code == 400
+        err_msg = invalid_q_res.json().get("detail") or invalid_q_res.json().get("error", {}).get(
+            "message", ""
+        )
+        assert "not a valid active topic" in err_msg.lower()
+
+        # Create valid questions referencing canonical M1 topics
+        q1_res = client.post(
+            f"/api/v1/courses/{c_id}/questions?topic_id={t1.id}",
+            json={
+                "statement": "What is an equivalence partition?",
+                "options": [
+                    "A valid or invalid class of inputs",
+                    "A compiler error",
+                    "A loop counter",
+                ],
+                "correct_option_index": 0,
+                "difficulty": "Hard",
+            },
+            headers=instructor_headers,
+        )
+        assert q1_res.status_code == 201
+        q1_id = q1_res.json()["id"]
+
+        q2_res = client.post(
+            f"/api/v1/courses/{c_id}/questions?topic_id={t2.id}",
+            json={
+                "statement": "How many values are tested in 2-point BVA?",
+                "options": ["1 value", "2 values", "5 values"],
+                "correct_option_index": 1,
+                "difficulty": "Medium",
+            },
+            headers=instructor_headers,
+        )
+        assert q2_res.status_code == 201
+        q2_id = q2_res.json()["id"]
+
+        # 3. Create & Publish Quiz
+        quiz_res = client.post(
+            f"/api/v1/courses/{c_id}/quizzes",
+            json={
+                "title": "Black-Box Testing Quiz",
+                "question_ids": [q1_id, q2_id],
+                "is_published": True,
+            },
+            headers=instructor_headers,
+        )
+        assert quiz_res.status_code == 201
+        quiz_id = quiz_res.json()["id"]
+
+        # 4. Student takes quiz (M2)
+        # Check student-safe projection (FR-11: answers and explanations stripped)
+        taking_res = client.get(f"/api/v1/quizzes/{quiz_id}", headers=student_headers)
+        assert taking_res.status_code == 200
+        safe_data = taking_res.json()
+        assert len(safe_data["questions"]) == 2
+        for q in safe_data["questions"]:
+            assert "correct_option_index" not in q
+            assert "explanation" not in q
+
+        # Submit attempt: Question 1 correct (0), Question 2 incorrect (0 instead of 1)
+        submit_payload = {
+            "answers": [
+                {"question_id": q1_id, "selected_option_index": 0},
+                {"question_id": q2_id, "selected_option_index": 0},
+            ]
+        }
+        submit_res = client.post(
+            f"/api/v1/quizzes/{quiz_id}/attempts",
+            json=submit_payload,
+            headers=student_headers,
+        )
+        assert submit_res.status_code == 201
+        result_data = submit_res.json()
+        assert result_data["score"] == 0.50
+        assert result_data["correct_answers"] == 1
+        assert result_data["total_questions"] == 2
+
+        # 5. Verify M3 Adaptive Engine received responses
+        t1_responses = a_repo.get_student_topic_responses(student_id=student_id, topic_id=t1.id)
+        assert len(t1_responses) == 1
+        assert t1_responses[0].is_correct is True
+        assert t1_responses[0].difficulty == "Hard"
+
+        t2_responses = a_repo.get_student_topic_responses(student_id=student_id, topic_id=t2.id)
+        assert len(t2_responses) == 1
+        assert t2_responses[0].is_correct is False
+        assert t2_responses[0].difficulty == "Medium"
+
+        # 6. Verify M5 Progress & Analytics Dashboard integration
+        prog_res = client.get(f"/api/v1/courses/{c_id}/progress", headers=student_headers)
+        assert prog_res.status_code == 200
+        prog_data = prog_res.json()
+        assert len(prog_data["recent_attempts"]) == 1
+        assert prog_data["recent_attempts"][0]["score"] == 0.50
+        assert prog_data["recent_attempts"][0]["quiz_title"] == "Black-Box Testing Quiz"
+
+        # Verify Question Stats in M5 Analytics
+        q_stats_res = client.get(
+            f"/api/v1/courses/{c_id}/analytics/questions", headers=instructor_headers
+        )
+        assert q_stats_res.status_code == 200
+        q_stats_data = q_stats_res.json()
+        assert len(q_stats_data["questions"]) == 2
+        q1_stat = next(q for q in q_stats_data["questions"] if q["question_id"] == q1_id)
+        assert q1_stat["topic_name"] == "Equivalence Partitioning"
+        assert q1_stat["correct_percentage"] == 100.0

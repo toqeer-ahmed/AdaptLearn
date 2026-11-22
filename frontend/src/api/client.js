@@ -141,11 +141,32 @@ export const api = {
       body: JSON.stringify({ course_code: courseCode }),
     }),
 
-  // Module 2: Quiz Management & Attempts (Mustajaab) — BLOCKED BY BACKEND
+  // Module 2: Quiz Management & Attempts (Mustajaab) — LIVE ON BACKEND
   getQuizzes: (courseId) => request(`/api/v1/courses/${courseId}/quizzes`),
+  getQuiz: (quizId) => request(`/api/v1/quizzes/${quizId}`),
+  createQuestion: (courseId, payload) =>
+    request(`/api/v1/courses/${courseId}/questions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  createQuiz: (courseId, payload) =>
+    request(`/api/v1/courses/${courseId}/quizzes`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  publishQuiz: (quizId, isPublished = true) =>
+    request(`/api/v1/quizzes/${quizId}/publish?is_published=${isPublished}`, {
+      method: 'POST',
+    }),
+  createPracticeQuiz: (courseId, topicId, questionCount = 5) =>
+    request(`/api/v1/courses/${courseId}/topics/${topicId}/practice-quiz`, {
+      method: 'POST',
+      body: JSON.stringify({ question_count: questionCount }),
+    }),
   submitQuizAttempt: (quizId, answers) =>
     request(`/api/v1/quizzes/${quizId}/attempts`, {
       method: 'POST',
       body: JSON.stringify({ answers }),
     }),
+  getAttemptResult: (attemptId) => request(`/api/v1/attempts/${attemptId}`),
 };
